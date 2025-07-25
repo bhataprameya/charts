@@ -1,5 +1,12 @@
 # Changelog
 
+## [27.1.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v27.0.1...sentry-v27.1.0) (2025-07-25)
+
+
+### Features
+
+* add params for consumers ([#1824](https://github.com/sentry-kubernetes/charts/issues/1824)) ([883d9ea](https://github.com/sentry-kubernetes/charts/commit/883d9ea6d7918128367d9c1e1554e8dbe1bfc03b))
+
 ## [27.0.1](https://github.com/sentry-kubernetes/charts/compare/sentry-v27.0.0...sentry-v27.0.1) (2025-07-24)
 
 
