@@ -22,6 +22,6 @@ dependencies:
   version: 12.5.1
 - name: nginx
   repository: oci://registry-1.docker.io/bitnamicharts
-  version: 18.2.5
-digest: sha256:f57f1f1f8d455729a7e04eb41c658530d710c9febe34844e062f084c17c1a382
-generated: "2025-07-21T06:40:24.054695705Z"
+  version: 21.1.4
+digest: sha256:98e7d42d5d515b01f8e21cb2d6b3c77da63105c601bb85028f100a0602b9cdbf
+generated: "2025-08-08T20:38:58.117568389Z"
