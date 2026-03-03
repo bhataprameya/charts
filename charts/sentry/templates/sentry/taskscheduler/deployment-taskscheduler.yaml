@@ -12,7 +12,7 @@ metadata:
     {{- include "sentry.component.labels" (dict "component" "taskscheduler" "ctx" .) | nindent 4 }}
 spec:
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
-  replicas: {{ default .Values.sentry.taskScheduler.replicas 1 }}
+  replicas: {{ default 1 .Values.sentry.taskScheduler.replicas }}
   selector:
     matchLabels:
         app: {{ template "sentry.fullname" . }}
