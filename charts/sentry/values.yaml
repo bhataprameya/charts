@@ -135,6 +135,7 @@ vroom:
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 50
+    # targetMemoryUtilizationPercentage: 50
     # Only available with autoscaling/v2
     behavior: {}
   sidecars: []
@@ -202,6 +203,7 @@ relay:
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 50
+    # targetMemoryUtilizationPercentage: 50
     # Only available with autoscaling/v2
     behavior: {}
   sidecars: []
@@ -304,6 +306,7 @@ sentry:
       minReplicas: 2
       maxReplicas: 5
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     sidecars: []
@@ -391,6 +394,7 @@ sentry:
       minReplicas: 1
       maxReplicas: 5
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     env: []
@@ -457,6 +461,7 @@ sentry:
       minReplicas: 1
       maxReplicas: 3
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     sidecars: []
@@ -499,6 +504,7 @@ sentry:
       minReplicas: 1
       maxReplicas: 3
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     sidecars: []
@@ -541,6 +547,7 @@ sentry:
       minReplicas: 1
       maxReplicas: 3
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     sidecars: []
@@ -1236,6 +1243,7 @@ snuba:
       minReplicas: 2
       maxReplicas: 5
       targetCPUUtilizationPercentage: 50
+      # targetMemoryUtilizationPercentage: 50
       # Only available with autoscaling/v2
       behavior: {}
     sidecars: []

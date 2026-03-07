@@ -14,6 +14,7 @@
 {{- $minReplicas := default $globalAutoscaling.minReplicas $workerAutoscaling.minReplicas }}
 {{- $maxReplicas := default $globalAutoscaling.maxReplicas $workerAutoscaling.maxReplicas }}
 {{- $targetCPU := default $globalAutoscaling.targetCPUUtilizationPercentage $workerAutoscaling.targetCPUUtilizationPercentage }}
+{{- $targetMemory := default $globalAutoscaling.targetMemoryUtilizationPercentage $workerAutoscaling.targetMemoryUtilizationPercentage }}
 {{- $behavior := default $globalAutoscaling.behavior $workerAutoscaling.behavior }}
 ---
 apiVersion: {{ template "sentry.autoscaling.apiVersion" $root }}
@@ -40,6 +41,15 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ $targetCPU }}
+    {{- if $targetMemory }}
+    - type: ContainerResource
+      containerResource:
+        container: taskworker
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $targetMemory }}
+    {{- end }}
   {{- else }}
   metrics:
     - type: Resource
@@ -48,6 +58,14 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ $targetCPU }}
+    {{- if $targetMemory }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $targetMemory }}
+    {{- end }}
   {{- end }}
   {{- if eq (include "sentry.autoscaling.apiVersion" $root) "autoscaling/v2" }}
   {{- with $behavior }}
