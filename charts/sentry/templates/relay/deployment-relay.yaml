@@ -33,6 +33,8 @@ spec:
   replicas: {{ .Values.relay.replicas }}
 {{- end }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  strategy:
+    type: {{ .Values.relay.strategyType | default "RollingUpdate" }}
   template:
     metadata:
       annotations:

@@ -170,6 +170,7 @@ uptimeChecker:
 relay:
   enabled: true
   annotations: {}
+  strategyType: RollingUpdate
   replicas: 1
   # args: []
   mode: managed
