@@ -13,6 +13,10 @@ metadata:
 spec:
   serviceName: {{ template "sentry.fullname" . }}-symbolicator-api
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- if .Values.symbolicator.api.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml .Values.symbolicator.api.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ template "sentry.fullname" . }}
@@ -101,6 +105,9 @@ spec:
         {{ end }}
 {{- if .Values.symbolicator.api.volumeMounts }}
 {{ toYaml .Values.symbolicator.api.volumeMounts | indent 8 }}
+{{- end }}
+{{- if .Values.global.volumeMounts }}
+{{ toYaml .Values.global.volumeMounts | indent 8 }}
 {{- end }}
         livenessProbe:
           failureThreshold: 5

@@ -14,6 +14,7 @@ global:
   nodeSelector: {}
   tolerations: []
   sidecars: []
+  volumeMounts: []
   volumes: []
 
 # Profiles correspond to COMPOSE_PROFILES in the original self-hosted docker-compose.yml.
@@ -170,6 +171,7 @@ uptimeChecker:
 relay:
   enabled: true
   annotations: {}
+  strategyType: RollingUpdate
   replicas: 1
   # args: []
   mode: managed
@@ -351,6 +353,11 @@ sentry:
       size: 1Gi
       storageClass: ""
       accessMode: ReadWriteOnce
+      # persistentVolumeClaimRetentionPolicy controls PVC lifecycle on StatefulSet deletion/scale-down.
+      # Requires Kubernetes 1.27+ with StatefulSetAutoDeletePVC feature gate enabled.
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Retain  # or Delete
+      #   whenScaled: Retain   # or Delete
     brokers:
       - name: default
         topic: taskworker
@@ -2145,6 +2152,11 @@ symbolicator:
       ## If 'lookupVolumeName' is set to true, Helm will attempt to retrieve
       ## the current value of 'spec.volumeName' and incorporate it into the template.
       lookupVolumeName: true
+      # persistentVolumeClaimRetentionPolicy controls PVC lifecycle on StatefulSet deletion/scale-down.
+      # Requires Kubernetes 1.27+ with StatefulSetAutoDeletePVC feature gate enabled.
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Retain  # or Delete
+      #   whenScaled: Retain   # or Delete
     replicas: 1
     env: []
     probeInitialDelaySeconds: 10
@@ -2985,6 +2997,12 @@ externalKafka:
     mechanism: None  # PLAIN,SCRAM-256,SCRAM-512
     username: None
     password: None
+    # (Optional) Use existing secret for SASL credentials instead of inline values
+    # existingSecret: ""
+    # existingSecretKeys:
+    #   mechanism: "mechanism"
+    #   username: "username"
+    #   password: "password"
   security:
     protocol: plaintext  # 'PLAINTEXT', 'SASL_PLAINTEXT', 'SASL_SSL' and 'SSL'
   socket:
