@@ -83,6 +83,12 @@ spec:
             {{- if .Values.global.volumeMounts }}
 {{ toYaml .Values.global.volumeMounts | indent 12 }}
             {{- end }}
+{{- if .Values.cleanerfs.sidecars }}
+{{ toYaml .Values.cleanerfs.sidecars | indent 10 }}
+{{- end }}
+{{- if .Values.global.sidecars }}
+{{ toYaml .Values.global.sidecars | indent 10 }}
+{{- end }}
           restartPolicy: Never
           volumes:
           - name: sentry-data
@@ -97,4 +103,10 @@ spec:
           {{- else }}
             emptyDir: {}
           {{ end }}
+{{- if .Values.cleanerfs.volumes }}
+{{ toYaml .Values.cleanerfs.volumes | indent 10 }}
+{{- end }}
+{{- if .Values.global.volumes }}
+{{ toYaml .Values.global.volumes | indent 10 }}
+{{- end }}
 {{- end }}

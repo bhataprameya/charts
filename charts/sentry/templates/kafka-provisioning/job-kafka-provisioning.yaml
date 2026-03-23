@@ -63,10 +63,16 @@ spec:
       {{- if $provisioning.nodeSelector }}
       nodeSelector:
 {{ toYaml $provisioning.nodeSelector | indent 8 }}
+      {{- else if .Values.global.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.global.nodeSelector | indent 8 }}
       {{- end }}
       {{- if $provisioning.tolerations }}
       tolerations:
 {{ toYaml $provisioning.tolerations | indent 8 }}
+      {{- else if .Values.global.tolerations }}
+      tolerations:
+{{ toYaml .Values.global.tolerations | indent 8 }}
       {{- end }}
       initContainers:
         - name: wait-for-kafka
@@ -187,7 +193,25 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+{{- if $provisioning.volumeMounts }}
+{{ toYaml $provisioning.volumeMounts | indent 12 }}
+{{- end }}
+{{- if .Values.global.volumeMounts }}
+{{ toYaml .Values.global.volumeMounts | indent 12 }}
+{{- end }}
+{{- if $provisioning.sidecars }}
+{{ toYaml $provisioning.sidecars | indent 8 }}
+{{- end }}
+{{- if .Values.global.sidecars }}
+{{ toYaml .Values.global.sidecars | indent 8 }}
+{{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+{{- if $provisioning.volumes }}
+{{ toYaml $provisioning.volumes | indent 8 }}
+{{- end }}
+{{- if .Values.global.volumes }}
+{{ toYaml .Values.global.volumes | indent 8 }}
+{{- end }}
 {{- end }}
