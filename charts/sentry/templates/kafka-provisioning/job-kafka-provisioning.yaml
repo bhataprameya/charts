@@ -63,10 +63,16 @@ spec:
       {{- if $provisioning.nodeSelector }}
       nodeSelector:
 {{ toYaml $provisioning.nodeSelector | indent 8 }}
+      {{- else if .Values.global.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.global.nodeSelector | indent 8 }}
       {{- end }}
       {{- if $provisioning.tolerations }}
       tolerations:
 {{ toYaml $provisioning.tolerations | indent 8 }}
+      {{- else if .Values.global.tolerations }}
+      tolerations:
+{{ toYaml .Values.global.tolerations | indent 8 }}
       {{- end }}
       initContainers:
         - name: wait-for-kafka
@@ -180,6 +186,36 @@ spec:
                 ${kafka_provisioning_commands[i]}
               done
               echo "Provisioning succeeded"
+
+              COMMON_OPTS="--bootstrap-server {{ $bootstrapServersString }} --command-config ${CLIENT_CONF}"
+
+              echo "Checking existing topic partitions and configs..."
+              {{- range $topics }}
+              {{- $partitions := .partitions | default $defaultPartitions }}
+              CURRENT_PARTITIONS=$(/opt/kafka/bin/kafka-topics.sh $COMMON_OPTS --describe --topic "{{ .name }}" 2>/dev/null | head -1 | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p')
+              if [ -n "$CURRENT_PARTITIONS" ] && [ "{{ $partitions }}" -gt "$CURRENT_PARTITIONS" ]; then
+                echo "  [ALTER] {{ .name }}: increasing partitions from $CURRENT_PARTITIONS to {{ $partitions }}"
+                /opt/kafka/bin/kafka-topics.sh $COMMON_OPTS --alter --topic "{{ .name }}" --partitions "{{ $partitions }}"
+              fi
+              {{- if .config }}
+              CURRENT_CONFIGS=$(/opt/kafka/bin/kafka-configs.sh $COMMON_OPTS --entity-type topics --entity-name "{{ .name }}" --describe 2>/dev/null || echo "")
+              NEEDS_UPDATE=false
+              {{- range $key, $value := .config }}
+              if ! echo "$CURRENT_CONFIGS" | grep -q '{{ $key }}={{ $value }}'; then
+                NEEDS_UPDATE=true
+              fi
+              {{- end }}
+              if [ "$NEEDS_UPDATE" = true ]; then
+                echo "  [CONFIG] {{ .name }}: applying config updates"
+                {{- $scratch := dict "args" (list) }}
+                {{- range $key, $value := .config }}
+                {{- $_ := set $scratch "args" (append (index $scratch "args") (printf "%s=[%s]" $key $value)) }}
+                {{- end }}
+                /opt/kafka/bin/kafka-configs.sh $COMMON_OPTS --entity-type topics --entity-name "{{ .name }}" --alter --add-config '{{ join "," (index $scratch "args") }}' || echo "  [CONFIG] {{ .name }}: WARNING - config update failed"
+              fi
+              {{- end }}
+              {{- end }}
+              echo "Update complete"
           {{- if $provisioning.resources }}
           resources:
 {{ toYaml $provisioning.resources | indent 12 }}
@@ -187,7 +223,25 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+{{- if $provisioning.volumeMounts }}
+{{ toYaml $provisioning.volumeMounts | indent 12 }}
+{{- end }}
+{{- if .Values.global.volumeMounts }}
+{{ toYaml .Values.global.volumeMounts | indent 12 }}
+{{- end }}
+{{- if $provisioning.sidecars }}
+{{ toYaml $provisioning.sidecars | indent 8 }}
+{{- end }}
+{{- if .Values.global.sidecars }}
+{{ toYaml .Values.global.sidecars | indent 8 }}
+{{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+{{- if $provisioning.volumes }}
+{{ toYaml $provisioning.volumes | indent 8 }}
+{{- end }}
+{{- if .Values.global.volumes }}
+{{ toYaml .Values.global.volumes | indent 8 }}
+{{- end }}
 {{- end }}
