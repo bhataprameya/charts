@@ -93,6 +93,14 @@ startupProbe:
 {{- default "1.38.0" .Values.hooks.dbCheck.image.tag -}}
 {{- end -}}
 
+{{- define "relay.configRender.image" -}}
+{{- $configRender := default (dict) .Values.relay.configRender -}}
+{{- $image := default (dict) $configRender.image -}}
+{{- default "busybox" $image.repository -}}
+:
+{{- default "1.36" $image.tag -}}
+{{- end -}}
+
 {{- define "vroom.image" -}}
 {{- default "ghcr.io/getsentry/vroom" .Values.images.vroom.repository -}}
 :

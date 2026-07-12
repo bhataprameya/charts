@@ -264,6 +264,11 @@ relay:
     env: []
     volumes: []
     volumeMounts: []
+  # configRender:
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
   # cache:
   #   envelopeBufferSize: 1000
   # logging:

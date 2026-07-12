@@ -414,6 +414,9 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | relay.autoscaling.maxReplicas | int | `5` |  |
 | relay.autoscaling.minReplicas | int | `2` |  |
 | relay.autoscaling.targetCPUUtilizationPercentage | int | `50` |  |
+| relay.configRender.image.pullPolicy | string | `"IfNotPresent"` |  |
+| relay.configRender.image.repository | string | `"busybox"` |  |
+| relay.configRender.image.tag | string | `"1.36"` |  |
 | relay.containerSecurityContext | object | `{}` |  |
 | relay.customResponseHeaders | list | `[]` |  |
 | relay.enabled | bool | `true` |  |
