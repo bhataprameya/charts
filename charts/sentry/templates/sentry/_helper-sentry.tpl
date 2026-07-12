@@ -72,6 +72,13 @@ config.yml: |-
   discord.bot-token: {{ .Values.discord.botToken | quote }}
   {{ end }}
 
+  #############
+  # PagerDuty #
+  #############
+  {{- if and (.Values.pagerduty.appId) (not .Values.pagerduty.existingSecret) }}
+  pagerduty.app-id: {{ .Values.pagerduty.appId | quote }}
+  {{- end }}
+
   #########
   # Redis #
   #########
@@ -773,6 +780,13 @@ sentry.conf.py: |-
   SENTRY_OPTIONS['discord.public-key'] = os.environ.get("DISCORD_PUBLIC_KEY")
   SENTRY_OPTIONS['discord.client-secret'] = os.environ.get("DISCORD_CLIENT_SECRET")
   SENTRY_OPTIONS['discord.bot-token'] = os.environ.get("DISCORD_BOT_TOKEN")
+{{- end }}
+
+{{- if .Values.pagerduty.existingSecret }}
+  #############
+  # PAGERDUTY #
+  #############
+  SENTRY_OPTIONS['pagerduty.app-id'] = os.environ.get("PAGERDUTY_APP_ID")
 {{- end }}
 
 {{- if .Values.google.existingSecret }}

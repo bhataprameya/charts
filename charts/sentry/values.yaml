@@ -2526,6 +2526,13 @@ discord: {}
 #   existingSecretBotToken: ""          # by default "bot-token"
 #   Reference -> https://develop.sentry.dev/integrations/discord/
 
+pagerduty: {}
+# pagerduty:
+#   appId: ""                           # PagerDuty App ID (public identifier, e.g. "PV5SD0T"), not a secret
+#   existingSecret: "xxxxx"
+#   existingSecretAppId: ""             # by default "app-id"
+#   Reference -> https://develop.sentry.dev/integrations/pagerduty/
+
 openai: {}
 #   existingSecret: "xxxxx"
 #   existingSecretKey: ""               # by default "api-token"
