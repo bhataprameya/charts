@@ -15,7 +15,7 @@ metadata:
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
     {{- include "sentry.component.labels" (dict "component" "relay" "ctx" .) | nindent 4 }}
-  {{- if .Values.asHook }}
+  {{- if .Values.relay.asHook }}
   {{- /* Add the Helm annotations so that deployment after asHook from true to false works */}}
   annotations:
     meta.helm.sh/release-name: "{{ .Release.Name }}"

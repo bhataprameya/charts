@@ -410,6 +410,7 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | redis.replica.nodeSelector | object | `{}` |  |
 | redis.replica.replicaCount | int | `1` |  |
 | relay.affinity | object | `{}` |  |
+| relay.asHook | bool | `true` | Deploy relay as a Helm hook. Set to false for rolling updates instead of delete-and-recreate on upgrades |
 | relay.autoscaling.enabled | bool | `false` |  |
 | relay.autoscaling.maxReplicas | int | `5` |  |
 | relay.autoscaling.minReplicas | int | `2` |  |

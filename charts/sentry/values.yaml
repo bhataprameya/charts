@@ -207,6 +207,7 @@ uptimeChecker:
 
 relay:
   enabled: true
+  asHook: true
   annotations: {}
   strategyType: RollingUpdate
   replicas: 1
