@@ -143,7 +143,7 @@ spec:
             requests:
               storage: 20Gi
   defaults:
-    replicasUseFQDN: "true"
+    replicasUseFQDN: "yes"
     templates:
       podTemplate: clickhouse
       dataVolumeClaimTemplate: data-volume
