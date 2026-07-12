@@ -1,12 +1,5 @@
 {{/* vim: set filetype=mustache: */}}
 
-{{- define "sentry.prefix" -}}
-    {{- if .Values.prefix -}}
-        {{.Values.prefix}}-
-    {{- else -}}
-    {{- end -}}
-{{- end -}}
-
 {{- define "relay.port" -}}{{ default 3000 .Values.relay.service.port }}{{- end -}}
 {{- define "relay.healthCheck.readinessRequestPath" -}}/api/relay/healthcheck/ready/{{- end -}}
 {{- define "relay.healthCheck.livenessRequestPath" -}}/api/relay/healthcheck/live/{{- end -}}
@@ -16,6 +9,61 @@
 {{- define "snuba.port" -}}1218{{- end -}}
 {{- define "symbolicator.port" -}}3021{{- end -}}
 {{- define "vroom.port" -}}8085{{- end -}}
+
+{{/*
+  livenessProbe block for kafka-consumer / worker deployments that expose a
+  file-based healthcheck via `--healthcheck-file-path` / `--health-check-file`.
+
+  Arguments (dict):
+    livenessProbe:   the workload's .Values.<x>.livenessProbe value
+    healthcheckFile: file path (default: /tmp/health.txt)
+    freshnessSeconds: liveness treshold since last touch of healthcheckFile (default: 60)
+*/}}
+{{- define "sentry.livenessProbe.execHealthcheckFile" -}}
+{{- $probe := .livenessProbe -}}
+{{- if $probe.enabled -}}
+{{- $probeConfig := omit $probe "enabled" "freshnessSeconds" -}}
+{{- $file := default "/tmp/health.txt" .healthcheckFile -}}
+{{- $fresh := default 60 $probe.freshnessSeconds -}}
+livenessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - 'test $(($(date +%s) - $(stat -c %Y {{ $file }} 2>/dev/null || echo 0))) -lt {{ $fresh }}'
+{{- with $probeConfig }}
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+  startupProbe block for kafka-consumer / worker deployments.
+  Absorbs cold-start latency so liveness can't fire during startup.
+
+  Arguments (dict):
+    startupProbe:    the workload's .Values.<x>.startupProbe value (may be unset)
+    healthcheckFile: file path (default: /tmp/health.txt)
+*/}}
+{{- define "sentry.startupProbe.execHealthcheckFile" -}}
+{{- $probe := .startupProbe | default (dict) -}}
+{{- $enabled := true -}}
+{{- if hasKey $probe "enabled" -}}{{- $enabled = $probe.enabled -}}{{- end -}}
+{{- if $enabled -}}
+{{- $defaults := dict "periodSeconds" 5 "failureThreshold" 60 -}}
+{{- $probeConfig := omit (merge (deepCopy $probe) $defaults) "enabled" -}}
+{{- $file := default "/tmp/health.txt" .healthcheckFile -}}
+startupProbe:
+  exec:
+    command:
+      - test
+      - -f
+      - {{ $file }}
+{{- with $probeConfig }}
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+{{- end -}}
 
 {{- define "relay.image" -}}
 {{- default "ghcr.io/getsentry/relay" .Values.images.relay.repository -}}
@@ -40,9 +88,9 @@
 {{- end -}}
 
 {{- define "dbCheck.image" -}}
-{{- default "subfuzion/netcat" .Values.hooks.dbCheck.image.repository -}}
+{{- default "busybox" .Values.hooks.dbCheck.image.repository -}}
 :
-{{- default "latest" .Values.hooks.dbCheck.image.tag -}}
+{{- default "1.38.0" .Values.hooks.dbCheck.image.tag -}}
 {{- end -}}
 
 {{- define "vroom.image" -}}
@@ -61,6 +109,20 @@
 {{- default "ghcr.io/getsentry/taskbroker" .Values.images.taskbroker.repository -}}
 :
 {{- default .Chart.AppVersion .Values.images.taskbroker.tag -}}
+{{- end -}}
+
+{{- define "launchpad.image" -}}
+{{- default "ghcr.io/getsentry/launchpad" .Values.images.launchpad.repository -}}
+:
+{{- default .Chart.AppVersion .Values.images.launchpad.tag -}}
+{{- end -}}
+
+{{- define "launchpad.secretName" -}}
+{{- printf "%s-launchpad-secret" (include "sentry.fullname" .) -}}
+{{- end -}}
+
+{{- define "launchpad.enabled" -}}
+{{- if and (has "feature-complete" .Values.profiles) .Values.launchpadTaskWorker.enabled .Values.sentry.taskBroker.enabled -}}true{{- end -}}
 {{- end -}}
 
 {{/*
@@ -97,20 +159,6 @@ If release name contains chart name it will be used as a full name.
 
 
 {{/*
-Get KubeVersion removing pre-release information.
-*/}}
-{{- define "sentry.kubeVersion" -}}
-  {{- default .Capabilities.KubeVersion.Version (regexFind "v[0-9]+\\.[0-9]+\\.[0-9]+" .Capabilities.KubeVersion.Version) -}}
-{{- end -}}
-
-{{/*
-Return the appropriate apiVersion for ingress.
-*/}}
-{{- define "sentry.ingress.apiVersion" -}}
-  {{- print "networking.k8s.io/v1" -}}
-{{- end -}}
-
-{{/*
 Resolve ingress controller style for path rules.
 */}}
 {{- define "sentry.ingress.controller" -}}
@@ -137,26 +185,6 @@ Resolve ingress controller style for path rules.
   {{- else -}}
     {{- print "nginx" -}}
   {{- end -}}
-{{- end -}}
-
-{{/*
-Return the appropriate batch apiVersion for cronjobs.
-batch/v1beta1 will no longer be served in v1.25
-See more at https://kubernetes.io/docs/reference/using-api/deprecation-guide/#cronjob-v125
-*/}}
-{{- define "sentry.batch.apiVersion" -}}
-  {{- if and (.Capabilities.APIVersions.Has "batch/v1") (semverCompare ">= 1.21.x" (include "sentry.kubeVersion" .)) -}}
-      {{- print "batch/v1" -}}
-  {{- else if .Capabilities.APIVersions.Has "batch/v1beta1" -}}
-    {{- print "batch/v1beta1" -}}
-  {{- end -}}
-{{- end -}}
-
-{{/*
-Return if batch is stable.
-*/}}
-{{- define "sentry.batch.isStable" -}}
-  {{- eq (include "sentry.batch.apiVersion" .) "batch/v1" -}}
 {{- end -}}
 
 {{/*
@@ -193,19 +221,6 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- printf "%s-%s" .Release.Name "kafka" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "sentry.zookeeper.fullname" -}}
-{{- if .Values.kafka.zookeeper.fullnameOverride -}}
-{{- .Values.kafka.zookeeper.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- $name := default .Chart.Name .Values.kafka.zookeeper.nameOverride -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s-%s" .Release.Name "zookeeper" | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
 {{/*
 Set postgres host
 */}}
@@ -216,18 +231,6 @@ Set postgres host
 {{ required "A valid .Values.externalPostgresql.host is required" .Values.externalPostgresql.host }}
 {{- end -}}
 {{- end -}}
-
-{{/*
-Set postgres secret
-*/}}
-{{- define "sentry.postgresql.secret" -}}
-{{- if .Values.postgresql.enabled -}}
-{{- template "sentry.postgresql.fullname" . -}}
-{{- else -}}
-{{- template "sentry.fullname" . -}}
-{{- end -}}
-{{- end -}}
-
 {{/*
 Set postgres port
 */}}
@@ -271,18 +274,6 @@ Set redis host
 {{ required "A valid .Values.externalRedis.host is required" .Values.externalRedis.host }}
 {{- end -}}
 {{- end -}}
-
-{{/*
-Set redis secret
-*/}}
-{{- define "sentry.redis.secret" -}}
-{{- if .Values.redis.enabled -}}
-{{- template "sentry.redis.fullname" . -}}
-{{- else -}}
-{{- template "sentry.fullname" . -}}
-{{- end -}}
-{{- end -}}
-
 {{/*
 Set redis port
 */}}
@@ -343,18 +334,6 @@ Build full Redis URI, including creds and db when available
 {{ printf "%s://:%s@%s:%s/%s" $redisProto $password $redisHost $redisPort $redisDb }}
 {{- else -}}
 {{ printf "%s://%s:%s/%s" $redisProto $redisHost $redisPort $redisDb }}
-{{- end -}}
-{{- end -}}
-
-
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "sentry.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create -}}
-    {{ default (include "sentry.fullname" .) .Values.serviceAccount.name }}
-{{- else -}}
-    {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
 
@@ -684,6 +663,103 @@ Set external Clickhouse password from existingSecret
   value: {{ .Values.vroom.persistence.bucketString | quote }}
 - name: SENTRY_SNUBA_HOST
   value: http://{{ template "sentry.fullname" . }}-snuba:{{ template "snuba.port" . }}
+{{- end -}}
+
+{{/*
+TaskBroker Kafka environment variables.
+The TaskBroker binary (Rust) reads Kafka config from TASKBROKER_KAFKA_* prefixed env vars,
+not the standard KAFKA_SASL_* vars used by Python-based Sentry/Snuba components.
+This helper auto-injects the required TASKBROKER_KAFKA_* and TASKBROKER_KAFKA_DEADLETTER_*
+env vars when externalKafka is configured with SASL authentication.
+See: https://github.com/sentry-kubernetes/charts/issues/2088
+*/}}
+{{- define "sentry.taskbroker.kafka.env" -}}
+{{- if not .Values.kafka.enabled }}
+{{- $securityProtocol := include "sentry.kafka.security_protocol" . -}}
+{{- $bootstrapServers := include "sentry.kafka.bootstrap_servers_string" . -}}
+- name: TASKBROKER_KAFKA_SECURITY_PROTOCOL
+  value: {{ $securityProtocol | quote }}
+- name: TASKBROKER_KAFKA_DEADLETTER_CLUSTER
+  value: {{ $bootstrapServers | quote }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SECURITY_PROTOCOL
+  value: {{ $securityProtocol | quote }}
+{{- if regexMatch "^SASL_" $securityProtocol }}
+{{- if .Values.externalKafka.sasl.existingSecret }}
+- name: TASKBROKER_KAFKA_SASL_MECHANISM
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "mechanism" .Values.externalKafka.sasl.existingSecretKeys.mechanism }}
+- name: TASKBROKER_KAFKA_SASL_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "username" .Values.externalKafka.sasl.existingSecretKeys.username }}
+- name: TASKBROKER_KAFKA_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "password" .Values.externalKafka.sasl.existingSecretKeys.password }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_MECHANISM
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "mechanism" .Values.externalKafka.sasl.existingSecretKeys.mechanism }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "username" .Values.externalKafka.sasl.existingSecretKeys.username }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "password" .Values.externalKafka.sasl.existingSecretKeys.password }}
+{{- else }}
+{{- $saslMechanism := include "sentry.kafka.sasl_mechanism" . -}}
+{{- $saslUsername := include "sentry.kafka.sasl_username" . -}}
+{{- $saslPassword := include "sentry.kafka.sasl_password" . -}}
+{{- if not (eq "None" $saslMechanism) }}
+- name: TASKBROKER_KAFKA_SASL_MECHANISM
+  value: {{ $saslMechanism | quote }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_MECHANISM
+  value: {{ $saslMechanism | quote }}
+{{- end }}
+{{- if not (eq "None" $saslUsername) }}
+- name: TASKBROKER_KAFKA_SASL_USERNAME
+  value: {{ $saslUsername | quote }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_USERNAME
+  value: {{ $saslUsername | quote }}
+{{- end }}
+{{- if not (eq "None" $saslPassword) }}
+- name: TASKBROKER_KAFKA_SASL_PASSWORD
+  value: {{ $saslPassword | quote }}
+- name: TASKBROKER_KAFKA_DEADLETTER_SASL_PASSWORD
+  value: {{ $saslPassword | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "launchpadTaskWorker.env" -}}
+- name: LAUNCHPAD_WORKER_RPC_HOST
+  value: {{ printf "%s-taskbroker-default:50051" (include "sentry.fullname" .) | quote }}
+- name: LAUNCHPAD_WORKER_CONCURRENCY
+  value: {{ .Values.launchpadTaskWorker.concurrency | quote }}
+- name: LAUNCHPAD_WORKER_HEALTH_CHECK_FILE_PATH
+  value: "/tmp/health.txt"
+- name: KAFKA_BOOTSTRAP_SERVERS
+  value: {{ include "sentry.kafka.bootstrap_servers_string" . | quote }}
+- name: SENTRY_BASE_URL
+  value: {{ printf "http://%s-web:%s" (include "sentry.fullname" .) (include "sentry.port" .) | quote }}
+- name: LAUNCHPAD_ENV
+  value: "self-hosted"
+- name: LAUNCHPAD_RPC_SHARED_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "launchpad.secretName" . }}
+      key: rpc-shared-secret
 {{- end -}}
 
 {{- define "uptimeChecker.env" -}}
@@ -1080,6 +1156,25 @@ Set openai api
     secretKeyRef:
       name: {{ .Values.openai.existingSecret }}
       key: {{ default "api-token" .Values.openai.existingSecretKey }}
+{{- end }}
+
+{{/*
+Set JS SDK Loader assets setup
+*/}}
+{{- if .Values.sentry.jsSdk.setupAssets }}
+- name: SETUP_JS_SDK_ASSETS
+  value: "1"
+{{- end }}
+
+{{/*
+Launchpad RPC shared secret (required by Sentry web and launchpad-taskworker)
+*/}}
+{{- if eq (include "launchpad.enabled" .) "true" }}
+- name: LAUNCHPAD_RPC_SHARED_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "launchpad.secretName" . }}
+      key: rpc-shared-secret
 {{- end }}
 {{- end -}}
 

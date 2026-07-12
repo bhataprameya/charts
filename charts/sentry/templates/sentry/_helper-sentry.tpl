@@ -86,7 +86,6 @@ config.yml: |-
   {{- end }}
 sentry.conf.py: |-
   from sentry.conf.server import *  # NOQA
-  from distutils.util import strtobool
 
   BYTE_MULTIPLIER = 1024
   UNITS = ("K", "M", "G")
@@ -95,18 +94,16 @@ sentry.conf.py: |-
       power = UNITS.index(unit) + 1
       return float(text[:-1])*(BYTE_MULTIPLIER**power)
 
-  {{- if .Values.sourcemaps.enabled }}
   CACHES = {
       "default": {
-          "BACKEND": "django.core.cache.backends.memcached.PyMemcacheCache",
+          "BACKEND": "sentry.cache.backends.reconnectingmemcache.ReconnectingMemcache",
           "LOCATION": [
               "{{ template "sentry.fullname" . }}-memcached:11211"
           ],
           "TIMEOUT": 3600,
-          "OPTIONS": {"ignore_exc": True}
+          "OPTIONS": {"ignore_exc": True, "reconnect_age": 300}
       }
   }
-  {{- end }}
 
   DATABASES = {
       "default": {
@@ -184,21 +181,6 @@ sentry.conf.py: |-
       }
     }
   }
-
-  #########
-  # Cache #
-  #########
-
-  # Sentry currently utilizes two separate mechanisms. While CACHES is not a
-  # requirement, it will optimize several high throughput patterns.
-
-  # CACHES = {
-  #     "default": {
-  #         "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
-  #         "LOCATION": ["memcached:11211"],
-  #         "TIMEOUT": 3600,
-  #     }
-  # }
 
   # A primary cache is required for things such as processing events
   SENTRY_CACHE = "sentry.cache.redis.RedisCache"
@@ -338,6 +320,7 @@ sentry.conf.py: |-
       "http-chunked-input": {{ .Values.config.web.httpChunkedInput | ternary "True" "False" }},
       # the number of web workers
       'workers': {{ .Values.config.web.workers | int }},
+      'threads': {{ .Values.config.web.threads | int }},
       # Turn off memory reporting
       "memory-report": {{ .Values.config.web.memoryReport | ternary "True" "False" }},
       # Some stuff so uwsgi will cycle workers sensibly
@@ -426,7 +409,6 @@ sentry.conf.py: |-
               "organizations:insights-initial-modules",
               "organizations:insights-addon-modules",
               "organizations:insights-modules-use-eap",
-              "organizations:standalone-span-ingestion",
               "organizations:starfish-mobile-appstart",
               "organizations:on-demand-metrics-extraction",
               "projects:span-metrics-extraction",
@@ -479,6 +461,17 @@ sentry.conf.py: |-
               "organizations:ourlogs-stats",
               "organizations:ourlogs-replay-ui",
 
+              # Metrics (Trace Metrics)
+              "organizations:tracemetrics-enabled",
+              "organizations:tracemetrics-alerts",
+              "organizations:tracemetrics-ingestion",
+              "organizations:tracemetrics-equations-in-alerts",
+              "organizations:tracemetrics-equations-in-explore",
+              "organizations:tracemetrics-multi-metric-selection-in-dashboards",
+              "organizations:tracemetrics-units-ui",
+              "organizations:tracemetrics-stats-bytes-ui",
+              "organizations:tracemetrics-pii-scrubbing-ui",
+
               # Chart-only / misc
               "organizations:related-events",
               "organizations:reprocessing-v2",
@@ -502,8 +495,8 @@ sentry.conf.py: |-
   # Email Configuration #
   #######################
   SENTRY_OPTIONS['mail.backend'] = os.getenv("SENTRY_EMAIL_BACKEND", {{ .Values.mail.backend | quote }})
-  SENTRY_OPTIONS['mail.use-tls'] = bool(strtobool(os.getenv("SENTRY_EMAIL_USE_TLS", {{ .Values.mail.useTls | quote }})))
-  SENTRY_OPTIONS['mail.use-ssl'] = bool(strtobool(os.getenv("SENTRY_EMAIL_USE_SSL", {{ .Values.mail.useSsl | quote }})))
+  SENTRY_OPTIONS['mail.use-tls'] = os.getenv("SENTRY_EMAIL_USE_TLS", {{ .Values.mail.useTls | quote }}).lower() in ("true", "1", "yes")
+  SENTRY_OPTIONS['mail.use-ssl'] = os.getenv("SENTRY_EMAIL_USE_SSL", {{ .Values.mail.useSsl | quote }}).lower() in ("true", "1", "yes")
   SENTRY_OPTIONS['mail.username'] = os.getenv("SENTRY_EMAIL_USERNAME", {{ .Values.mail.username | quote }})
   SENTRY_OPTIONS['mail.password'] = os.getenv("SENTRY_EMAIL_PASSWORD", "")
   SENTRY_OPTIONS['mail.port'] = int(os.getenv("SENTRY_EMAIL_PORT", {{ .Values.mail.port | quote }}))
@@ -529,8 +522,12 @@ sentry.conf.py: |-
 
   {{- if eq .Values.filestore.backend "s3" }}
   SENTRY_OPTIONS['filestore.options'] = {
+      {{- if or .Values.filestore.s3.accessKey .Values.filestore.s3.existingSecret }}
       'access_key': os.getenv("S3_ACCESS_KEY_ID", {{ .Values.filestore.s3.accessKey | default "" | quote }}),
+      {{- end }}
+      {{- if or .Values.filestore.s3.secretKey .Values.filestore.s3.existingSecret }}
       'secret_key': os.getenv("S3_SECRET_ACCESS_KEY", {{ .Values.filestore.s3.secretKey | default "" | quote }}),
+      {{- end }}
       {{- if .Values.filestore.s3.bucketName }}
       'bucket_name': {{ .Values.filestore.s3.bucketName | quote }},
       {{- end }}
@@ -577,8 +574,12 @@ sentry.conf.py: |-
   {{- if eq .Values.replay.storage.backend "s3" }}
   {{- $replayS3 := .Values.replay.storage.s3 | default dict }}
   SENTRY_OPTIONS['replay.storage.options'] = {
+      {{- if or $replayS3.accessKey $replayS3.existingSecret }}
       'access_key': os.getenv("REPLAY_S3_ACCESS_KEY_ID", {{ $replayS3.accessKey | default "" | quote }}),
+      {{- end }}
+      {{- if or $replayS3.secretKey $replayS3.existingSecret }}
       'secret_key': os.getenv("REPLAY_S3_SECRET_ACCESS_KEY", {{ $replayS3.secretKey | default "" | quote }}),
+      {{- end }}
       {{- if $replayS3.bucketName }}
       'bucket_name': {{ $replayS3.bucketName | quote }},
       {{- end }}
@@ -630,8 +631,12 @@ sentry.conf.py: |-
   {{- if eq .Values.filestore.profiles.backend "s3" }}
   {{- $profilesS3 := .Values.filestore.profiles.s3 | default dict }}
   SENTRY_OPTIONS['filestore.profiles-options'] = {
+      {{- if or $profilesS3.accessKey $profilesS3.existingSecret }}
       'access_key': os.getenv("PROFILES_S3_ACCESS_KEY_ID", {{ $profilesS3.accessKey | default "" | quote }}),
+      {{- end }}
+      {{- if or $profilesS3.secretKey $profilesS3.existingSecret }}
       'secret_key': os.getenv("PROFILES_S3_SECRET_ACCESS_KEY", {{ $profilesS3.secretKey | default "" | quote }}),
+      {{- end }}
       {{- if $profilesS3.bucketName }}
       'bucket_name': {{ $profilesS3.bucketName | quote }},
       {{- end }}
@@ -705,8 +710,12 @@ sentry.conf.py: |-
       {{- if $nodestoreS3.regionName }}
       "region_name": {{ $nodestoreS3.regionName | quote }},
       {{- end }}
+      {{- if or $nodestoreS3.accessKeyId $nodestoreS3.existingSecret }}
       "aws_access_key_id": os.getenv("NODESTORE_S3_ACCESS_KEY_ID", {{ $nodestoreS3.accessKeyId | default "" | quote }}),
+      {{- end }}
+      {{- if or $nodestoreS3.secretAccessKey $nodestoreS3.existingSecret }}
       "aws_secret_access_key": os.getenv("NODESTORE_S3_SECRET_ACCESS_KEY", {{ $nodestoreS3.secretAccessKey | default "" | quote }}),
+      {{- end }}
   }
   {{- end }}
   {{- end }}
@@ -731,6 +740,13 @@ sentry.conf.py: |-
   OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
   if OPENAI_API_KEY:
     SENTRY_FEATURES["organizations:open-ai-suggestion"] = True
+
+  ########################
+  # JS SDK Loader Script #
+  ########################
+  {{- if .Values.sentry.jsSdk.setupAssets }}
+  JS_SDK_LOADER_DEFAULT_SDK_URL = {{ .Values.sentry.jsSdk.defaultSdkUrl | quote }}
+  {{- end }}
 
 {{- if .Values.metrics.enabled }}
   SENTRY_METRICS_BACKEND = 'sentry.metrics.statsd.StatsdMetricsBackend'
@@ -792,7 +808,7 @@ sentry.conf.py: |-
 Init container for installing sentry-nodestore-s3 package
 */}}
 {{- define "sentry.initContainer.nodestore-s3" -}}
-{{- if .Values.nodestore.backend }}
+{{- if and .Values.nodestore.backend .Values.nodestore.installViaInitContainer }}
 - name: install-nodestore-s3
   image: "{{ template "sentry.image" . }}"
   imagePullPolicy: {{ default "IfNotPresent" .Values.images.sentry.pullPolicy }}
@@ -815,7 +831,7 @@ Init container for installing sentry-nodestore-s3 package
 Volume definition for sentry plugins
 */}}
 {{- define "sentry.volume.nodestore-s3" -}}
-{{- if .Values.nodestore.backend }}
+{{- if and .Values.nodestore.backend .Values.nodestore.installViaInitContainer }}
 - name: sentry-plugins
   emptyDir: {}
 {{- end }}
@@ -825,7 +841,7 @@ Volume definition for sentry plugins
 Volume mount for sentry plugins
 */}}
 {{- define "sentry.volumeMount.nodestore-s3" -}}
-{{- if .Values.nodestore.backend }}
+{{- if and .Values.nodestore.backend .Values.nodestore.installViaInitContainer }}
 - name: sentry-plugins
   mountPath: /sentry-plugins
 {{- end }}
@@ -862,8 +878,10 @@ Environment variable for Python path to include plugins
 */}}
 {{- define "sentry.env.nodestore-s3" -}}
 {{- if .Values.nodestore.backend }}
+{{- if .Values.nodestore.installViaInitContainer }}
 - name: PYTHONPATH
   value: "/sentry-plugins"
+{{- end }}
 {{- if .Values.nodestore.s3.setAwsChecksumCalculationVar }}
 - name: AWS_REQUEST_CHECKSUM_CALCULATION
   value: when_required

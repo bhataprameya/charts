@@ -101,19 +101,25 @@ spec:
           {{- if .Values.sentry.processSpans.noStrictOffsetReset }}
           - "--no-strict-offset-reset"
           {{- end }}
-          {{- if .Values.sentry.processSpans.livenessProbe.enabled }}
           - "--healthcheck-file-path"
           - "/tmp/health.txt"
+          {{- if or .Values.sentry.processSpans.concurrency .Values.sentry.processSpans.maxBatchSize .Values.sentry.processSpans.maxBatchTimeMs }}
+          - "--"
           {{- end }}
-        {{- if .Values.sentry.processSpans.livenessProbe.enabled }}
-        livenessProbe:
-          exec:
-            command:
-              - rm
-              - /tmp/health.txt
-          initialDelaySeconds: {{ .Values.sentry.processSpans.livenessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.sentry.processSpans.livenessProbe.periodSeconds }}
-        {{- end }}
+          {{- if .Values.sentry.processSpans.concurrency }}
+          - "--processes"
+          - "{{ .Values.sentry.processSpans.concurrency }}"
+          {{- end }}
+          {{- if .Values.sentry.processSpans.maxBatchSize }}
+          - "--max-batch-size"
+          - "{{ .Values.sentry.processSpans.maxBatchSize }}"
+          {{- end }}
+          {{- if .Values.sentry.processSpans.maxBatchTimeMs }}
+          - "--max-batch-time-ms"
+          - "{{ .Values.sentry.processSpans.maxBatchTimeMs }}"
+          {{- end }}
+        {{- include "sentry.startupProbe.execHealthcheckFile" (dict "startupProbe" .Values.sentry.processSpans.startupProbe "healthcheckFile" "/tmp/health.txt") | nindent 8 }}
+        {{- include "sentry.livenessProbe.execHealthcheckFile" (dict "livenessProbe" .Values.sentry.processSpans.livenessProbe "healthcheckFile" "/tmp/health.txt") | nindent 8 }}
         env:
 {{ include "sentry.env" . | indent 8 }}
 {{ include "sentry.env.nodestore-s3" . | indent 8 }}

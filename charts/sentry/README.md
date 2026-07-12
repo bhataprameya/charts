@@ -14,10 +14,23 @@ Please refer to the [External Services Documentation](docs/external-services.md)
 helm repo add sentry https://sentry-kubernetes.github.io/charts
 ```
 
-## Without overrides
+## Quick install
+
+You must provide an admin password (or reference an existing secret). For a quick test:
 
 ```
-helm install sentry sentry/sentry --wait --timeout=1000s
+helm install sentry sentry/sentry --wait --timeout=1000s \
+  --set user.password=CHANGE_ME
+```
+
+For production, create a Kubernetes secret and reference it via `user.existingSecret`:
+
+```
+kubectl create secret generic sentry-admin-password \
+  --from-literal=admin-password='CHANGE_ME'
+
+helm install sentry sentry/sentry --wait --timeout=1000s \
+  --set user.existingSecret=sentry-admin-password
 ```
 
 ## With your own values file
@@ -157,6 +170,7 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | hooks.enabled | bool | `true` |  |
 | hooks.preUpgrade | bool | `false` |  |
 | hooks.removeOnSuccess | bool | `true` |  |
+| hooks.restartPolicy | string | `"Never"` |  |
 | hooks.shareProcessNamespace | bool | `false` |  |
 | hooks.snubaInit.affinity | object | `{}` |  |
 | hooks.snubaInit.enabled | bool | `true` |  |
@@ -173,6 +187,7 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | images.snuba.imagePullSecrets | list | `[]` |  |
 | images.symbolicator.imagePullSecrets | list | `[]` |  |
 | images.vroom.imagePullSecrets | list | `[]` |  |
+| images.launchpad.imagePullSecrets | list | `[]` |  |
 | ingress.annotations | object | `{"nginx.ingress.kubernetes.io/use-regex":"true","nginx.ingress.kubernetes.io/proxy-buffers-number":"4","nginx.ingress.kubernetes.io/proxy-buffer-size":"128k","nginx.ingress.kubernetes.io/proxy-busy-buffers-size":"256k"}` | Default ingress annotations (override per controller) |
 | ingress.enabled | bool | `false` |  |
 | ingress.ingressClassName | string | `"nginx"` |  |
@@ -292,7 +307,6 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | kafka.sasl.client.users | list | `[]` | List of usernames for client communications when SASL is enabled, first user will be used if enabled |
 | kafka.sasl.client.passwords | list | `[]` | List of passwords for client communications when SASL is enabled, must match the number of client.users, first password will be used if enabled |
 | kafka.sasl.enabledMechanisms | string | `"PLAIN,SCRAM-SHA-256,SCRAM-SHA-512"` | Comma-separated list of allowed SASL mechanisms when SASL listeners are configured |
-| kafka.zookeeper.enabled | bool | `false` |  |
 | mail.backend | string | `"dummy"` |  |
 | mail.from | string | `""` |  |
 | mail.host | string | `""` |  |
@@ -322,9 +336,9 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | metrics.nodeSelector | object | `{}` |  |
 | metrics.podAnnotations | object | `{}` |  |
 | metrics.readinessProbe.enabled | bool | `true` |  |
-| metrics.readinessProbe.failureThreshold | int | `3` |  |
+| metrics.readinessProbe.failureThreshold | int | `2` |  |
 | metrics.readinessProbe.initialDelaySeconds | int | `30` |  |
-| metrics.readinessProbe.periodSeconds | int | `5` |  |
+| metrics.readinessProbe.periodSeconds | int | `3` |  |
 | metrics.readinessProbe.successThreshold | int | `1` |  |
 | metrics.readinessProbe.timeoutSeconds | int | `2` |  |
 | metrics.resources | object | `{}` |  |
@@ -387,28 +401,6 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | postgresql.replication.numSynchronousReplicas | int | `1` |  |
 | postgresql.replication.readReplicas | int | `2` |  |
 | postgresql.replication.synchronousCommit | string | `"on"` |  |
-| prefix | string | `nil` |  |
-| rabbitmq.auth.erlangCookie | string | `"pHgpy3Q6adTskzAT6bLHCFqFTF7lMxhA"` |  |
-| rabbitmq.auth.password | string | `"guest"` |  |
-| rabbitmq.auth.username | string | `"guest"` |  |
-| rabbitmq.clustering.forceBoot | bool | `true` |  |
-| rabbitmq.clustering.rebalance | bool | `true` |  |
-| rabbitmq.enabled | bool | `true` |  |
-| rabbitmq.extraConfiguration | string | `"load_definitions = /app/load_definition.json\n"` |  |
-| rabbitmq.extraSecrets.load-definition."load_definition.json" | string | `"{\n  \"users\": [\n    {\n      \"name\": \"{{ .Values.auth.username }}\",\n      \"password\": \"{{ .Values.auth.password }}\",\n      \"tags\": \"administrator\"\n    }\n  ],\n  \"permissions\": [{\n    \"user\": \"{{ .Values.auth.username }}\",\n    \"vhost\": \"/\",\n    \"configure\": \".*\",\n    \"write\": \".*\",\n    \"read\": \".*\"\n  }],\n  \"policies\": [\n    {\n      \"name\": \"ha-all\",\n      \"pattern\": \".*\",\n      \"vhost\": \"/\",\n      \"definition\": {\n        \"ha-mode\": \"all\",\n        \"ha-sync-mode\": \"automatic\",\n        \"ha-sync-batch-size\": 1\n      }\n    }\n  ],\n  \"vhosts\": [\n    {\n      \"name\": \"/\"\n    }\n  ]\n}\n"` |  |
-| rabbitmq.loadDefinition.enabled | bool | `true` |  |
-| rabbitmq.loadDefinition.existingSecret | string | `"load-definition"` |  |
-| rabbitmq.memoryHighWatermark | object | `{}` |  |
-| rabbitmq.metrics.enabled | bool | `false` |  |
-| rabbitmq.metrics.serviceMonitor.enabled | bool | `false` |  |
-| rabbitmq.metrics.serviceMonitor.labels.release | string | `"prometheus-operator"` |  |
-| rabbitmq.metrics.serviceMonitor.path | string | `"/metrics/per-object"` |  |
-| rabbitmq.nameOverride | string | `""` |  |
-| rabbitmq.pdb.create | bool | `true` |  |
-| rabbitmq.persistence.enabled | bool | `true` |  |
-| rabbitmq.replicaCount | int | `1` |  |
-| rabbitmq.resources | object | `{}` |  |
-| rabbitmq.vhost | string | `"/"` |  |
 | redis.auth.enabled | bool | `false` |  |
 | redis.auth.sentinel | bool | `false` |  |
 | redis.enabled | bool | `true` |  |
@@ -428,13 +420,18 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | relay.env | list | `[]` |  |
 | relay.init.resources | object | `{}` |  |
 | relay.mode | string | `"managed"` |  |
+| relay.livenessProbe.failureThreshold | int | `5` |  |
+| relay.livenessProbe.initialDelaySeconds | int | `10` |  |
+| relay.livenessProbe.periodSeconds | int | `10` |  |
+| relay.livenessProbe.successThreshold | int | `1` |  |
+| relay.livenessProbe.timeoutSeconds | int | `2` |  |
 | relay.nodeSelector | object | `{}` |  |
-| relay.probeFailureThreshold | int | `5` |  |
-| relay.probeInitialDelaySeconds | int | `10` |  |
-| relay.probePeriodSeconds | int | `10` |  |
-| relay.probeSuccessThreshold | int | `1` |  |
-| relay.probeTimeoutSeconds | int | `2` |  |
 | relay.processing.kafkaConfig.messageMaxBytes | int | `50000000` |  |
+| relay.readinessProbe.failureThreshold | int | `2` |  |
+| relay.readinessProbe.initialDelaySeconds | int | `10` |  |
+| relay.readinessProbe.periodSeconds | int | `3` |  |
+| relay.readinessProbe.successThreshold | int | `1` |  |
+| relay.readinessProbe.timeoutSeconds | int | `2` |  |
 | relay.replicas | int | `1` |  |
 | relay.resources | object | `{}` |  |
 | relay.securityContext | object | `{}` |  |
@@ -780,6 +777,7 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | sentry.subscriptionConsumerTransactions.topologySpreadConstraints | list | `[]` |  |
 | sentry.subscriptionConsumerTransactions.volumes | list | `[]` |  |
 | sentry.taskBroker.affinity | object | `{}` | |
+| sentry.taskBroker.brokers | list | (see `values.yaml`) | One broker StatefulSet per item (`name`, `topic`, `consumerGroup`, `replicas`, optional `resources` merged with `sentry.taskBroker.resources`, optional `topologySpreadConstraints` overridding `sentry.taskBroker.topologySpreadConstraints`). |
 | sentry.taskBroker.containerSecurityContext | object | `{}` | |
 | sentry.taskBroker.enabled | bool | `true` | |
 | sentry.taskBroker.env | list | `[]` | |
@@ -790,11 +788,11 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | sentry.taskBroker.persistence.storageClass | string | `""` | |
 | sentry.taskBroker.priorityClassName | string | `""` | |
 | sentry.taskBroker.replicas | int | `1` | |
-| sentry.taskBroker.resources | object | `{}` | |
+| sentry.taskBroker.resources | object | `{}` | Default container resources for task broker pods; merged with each broker’s `resources` in `sentry.taskBroker.brokers`. |
 | sentry.taskBroker.securityContext | object | `{}` | |
 | sentry.taskBroker.sidecars | list | `[]` | |
 | sentry.taskBroker.tolerations | list | `[]` | |
-| sentry.taskBroker.topologySpreadConstraints | list | `[]` | |
+| sentry.taskBroker.topologySpreadConstraints | list | `[]` | Default pod topologySpreadConstraints for task broker pods; overridden by each broker’s `topologySpreadConstraints` in `sentry.taskBroker.brokers`. |
 | sentry.taskBroker.volumeMounts | list | `[]` | |
 | sentry.taskBroker.volumes | list | `[]` | |
 | sentry.taskWorker.affinity | object | `{}` | |
@@ -812,13 +810,28 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | sentry.taskWorker.nodeSelector | object | `{}` | |
 | sentry.taskWorker.priorityClassName | string | `""` | |
 | sentry.taskWorker.replicas | int | `1` | |
-| sentry.taskWorker.resources | object | `{}` | |
+| sentry.taskWorker.resources | object | `{}` | Default container resources for task worker pods; merged with each worker’s `resources` in `sentry.taskWorker.workers`. |
 | sentry.taskWorker.securityContext | object | `{}` | |
 | sentry.taskWorker.sidecars | list | `[]` | |
 | sentry.taskWorker.tolerations | list | `[]` | |
-| sentry.taskWorker.topologySpreadConstraints | list | `[]` | |
+| sentry.taskWorker.topologySpreadConstraints | list | `[]` | Default pod topologySpreadConstraints for task worker pods; overriden by each worker’s `topologySpreadConstraints` in `sentry.taskWorker.workers`. |
 | sentry.taskWorker.volumeMounts | list | `[]` | |
 | sentry.taskWorker.volumes | list | `[]` | |
+| sentry.taskWorker.workers | list | (see `values.yaml`) | One task worker Deployment per item (`name`, `brokerName`, `brokerReplicas`, `replicas`, `concurrency`, optional `resources` merged with `sentry.taskWorker.resources`, optional `autoscaling` overriding `sentry.taskWorker.autoscaling`, optional `topologySpreadConstraints` overriding `sentry.taskWorker.topologySpreadConstraints`). |
+| launchpadTaskWorker.enabled | bool | `true` | Deploy Launchpad taskworker (mobile build processing). Requires `feature-complete` profile and `sentry.taskBroker.enabled`. |
+| launchpadTaskWorker.replicas | int | `1` |  |
+| launchpadTaskWorker.concurrency | int | `4` | Parallel Launchpad worker processes (`LAUNCHPAD_WORKER_CONCURRENCY`). |
+| launchpadTaskWorker.env | list | `[]` | Extra environment variables for the Launchpad taskworker container. |
+| launchpadTaskWorker.resources | object | `{}` |  |
+| launchpadTaskWorker.affinity | object | `{}` |  |
+| launchpadTaskWorker.nodeSelector | object | `{}` |  |
+| launchpadTaskWorker.securityContext | object | `{}` |  |
+| launchpadTaskWorker.containerSecurityContext | object | `{}` |  |
+| launchpadTaskWorker.tolerations | list | `[]` |  |
+| launchpadTaskWorker.podLabels | object | `{}` |  |
+| launchpadTaskWorker.livenessProbe.initialDelaySeconds | int | `30` |  |
+| launchpadTaskWorker.livenessProbe.periodSeconds | int | `10` |  |
+| launchpadTaskWorker.livenessProbe.timeoutSeconds | int | `5` |  |
 | sentry.web.affinity | object | `{}` |  |
 | sentry.web.autoscaling.enabled | bool | `false` |  |
 | sentry.web.autoscaling.maxReplicas | int | `5` |  |
@@ -829,12 +842,17 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | sentry.web.enabled | bool | `true` |  |
 | sentry.web.env | list | `[]` |  |
 | sentry.web.existingSecretEnv | string | `""` |  |
+| sentry.web.livenessProbe.failureThreshold | int | `5` |  |
+| sentry.web.livenessProbe.initialDelaySeconds | int | `10` |  |
+| sentry.web.livenessProbe.periodSeconds | int | `10` |  |
+| sentry.web.livenessProbe.successThreshold | int | `1` |  |
+| sentry.web.livenessProbe.timeoutSeconds | int | `2` |  |
 | sentry.web.nodeSelector | object | `{}` |  |
-| sentry.web.probeFailureThreshold | int | `5` |  |
-| sentry.web.probeInitialDelaySeconds | int | `10` |  |
-| sentry.web.probePeriodSeconds | int | `10` |  |
-| sentry.web.probeSuccessThreshold | int | `1` |  |
-| sentry.web.probeTimeoutSeconds | int | `2` |  |
+| sentry.web.readinessProbe.failureThreshold | int | `2` |  |
+| sentry.web.readinessProbe.initialDelaySeconds | int | `10` |  |
+| sentry.web.readinessProbe.periodSeconds | int | `3` |  |
+| sentry.web.readinessProbe.successThreshold | int | `1` |  |
+| sentry.web.readinessProbe.timeoutSeconds | int | `2` |  |
 | sentry.web.replicas | int | `1` |  |
 | sentry.web.resources | object | `{}` |  |
 | sentry.web.securityContext | object | `{}` |  |
@@ -863,10 +881,17 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | snuba.api.containerSecurityContext | object | `{}` |  |
 | snuba.api.enabled | bool | `true` |  |
 | snuba.api.env | list | `[]` |  |
-| snuba.api.liveness.timeoutSeconds | int | `2` |  |
+| snuba.api.livenessProbe.failureThreshold | int | `5` |  |
+| snuba.api.livenessProbe.initialDelaySeconds | int | `10` |  |
+| snuba.api.livenessProbe.periodSeconds | int | `10` |  |
+| snuba.api.livenessProbe.successThreshold | int | `1` |  |
+| snuba.api.livenessProbe.timeoutSeconds | int | `2` |  |
 | snuba.api.nodeSelector | object | `{}` |  |
-| snuba.api.probeInitialDelaySeconds | int | `10` |  |
-| snuba.api.readiness.timeoutSeconds | int | `2` |  |
+| snuba.api.readinessProbe.failureThreshold | int | `2` |  |
+| snuba.api.readinessProbe.initialDelaySeconds | int | `10` |  |
+| snuba.api.readinessProbe.periodSeconds | int | `3` |  |
+| snuba.api.readinessProbe.successThreshold | int | `1` |  |
+| snuba.api.readinessProbe.timeoutSeconds | int | `2` |  |
 | snuba.api.replicas | int | `1` |  |
 | snuba.api.resources | object | `{}` |  |
 | snuba.api.securityContext | object | `{}` |  |
@@ -1093,7 +1118,6 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | snuba.transactionsConsumer.resources | object | `{}` |  |
 | snuba.transactionsConsumer.securityContext | object | `{}` |  |
 | snuba.transactionsConsumer.topologySpreadConstraints | list | `[]` |  |
-| sourcemaps.enabled | bool | `false` |  |
 | symbolicator.api.affinity | object | `{}` |  |
 | symbolicator.api.autoscaling.enabled | bool | `false` |  |
 | symbolicator.api.autoscaling.maxReplicas | int | `5` |  |
@@ -1102,11 +1126,20 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | symbolicator.api.config | string | `"# See: https://getsentry.github.io/symbolicator/#configuration\ncache_dir: \"/data\"\nbind: \"0.0.0.0:3021\"\nlogging:\n  level: \"warn\"\nmetrics:\n  statsd: null\n  prefix: \"symbolicator\"\nsentry_dsn: null\nconnect_to_reserved_ips: true\n# caches:\n#   downloaded:\n#     max_unused_for: 1w\n#     retry_misses_after: 5m\n#     retry_malformed_after: 5m\n#   derived:\n#     max_unused_for: 1w\n#     retry_misses_after: 5m\n#     retry_malformed_after: 5m\n#   diagnostics:\n#     retention: 1w"` |  |
 | symbolicator.api.containerSecurityContext | object | `{}` |  |
 | symbolicator.api.env | list | `[]` |  |
+| symbolicator.api.livenessProbe.failureThreshold | int | `5` |  |
+| symbolicator.api.livenessProbe.initialDelaySeconds | int | `10` |  |
+| symbolicator.api.livenessProbe.periodSeconds | int | `10` |  |
+| symbolicator.api.livenessProbe.successThreshold | int | `1` |  |
+| symbolicator.api.livenessProbe.timeoutSeconds | int | `2` |  |
 | symbolicator.api.nodeSelector | object | `{}` |  |
 | symbolicator.api.persistence.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | symbolicator.api.persistence.enabled | bool | `true` |  |
 | symbolicator.api.persistence.size | string | `"10Gi"` |  |
-| symbolicator.api.probeInitialDelaySeconds | int | `10` |  |
+| symbolicator.api.readinessProbe.failureThreshold | int | `2` |  |
+| symbolicator.api.readinessProbe.initialDelaySeconds | int | `10` |  |
+| symbolicator.api.readinessProbe.periodSeconds | int | `3` |  |
+| symbolicator.api.readinessProbe.successThreshold | int | `1` |  |
+| symbolicator.api.readinessProbe.timeoutSeconds | int | `2` |  |
 | symbolicator.api.replicas | int | `1` |  |
 | symbolicator.api.resources | object | `{}` |  |
 | symbolicator.api.securityContext | object | `{}` |  |
@@ -1119,7 +1152,7 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | system.url | string | `""` |  |
 | user.create | bool | `true` |  |
 | user.email | string | `"admin@sentry.local"` |  |
-| user.password | string | `"aaaa"` |  |
+| user.password | string | `""` | Plaintext admin password. Required if `user.create` is true and `user.existingSecret` is not set. Using `user.existingSecret` is strongly recommended for production. |
 | vroom.affinity | object | `{}` |  |
 | vroom.autoscaling.enabled | bool | `false` |  |
 | vroom.autoscaling.maxReplicas | int | `5` |  |
@@ -1127,12 +1160,17 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | vroom.autoscaling.targetCPUUtilizationPercentage | int | `50` |  |
 | vroom.containerSecurityContext | object | `{}` |  |
 | vroom.env | list | `[]` |  |
+| vroom.livenessProbe.failureThreshold | int | `5` |  |
+| vroom.livenessProbe.initialDelaySeconds | int | `10` |  |
+| vroom.livenessProbe.periodSeconds | int | `10` |  |
+| vroom.livenessProbe.successThreshold | int | `1` |  |
+| vroom.livenessProbe.timeoutSeconds | int | `2` |  |
 | vroom.nodeSelector | object | `{}` |  |
-| vroom.probeFailureThreshold | int | `5` |  |
-| vroom.probeInitialDelaySeconds | int | `10` |  |
-| vroom.probePeriodSeconds | int | `10` |  |
-| vroom.probeSuccessThreshold | int | `1` |  |
-| vroom.probeTimeoutSeconds | int | `2` |  |
+| vroom.readinessProbe.failureThreshold | int | `2` |  |
+| vroom.readinessProbe.initialDelaySeconds | int | `10` |  |
+| vroom.readinessProbe.periodSeconds | int | `3` |  |
+| vroom.readinessProbe.successThreshold | int | `1` |  |
+| vroom.readinessProbe.timeoutSeconds | int | `2` |  |
 | vroom.replicas | int | `1` |  |
 | vroom.resources | object | `{}` |  |
 | vroom.securityContext | object | `{}` |  |
@@ -1306,12 +1344,7 @@ Its also important having `connect_to_reserved_ips: true` in the symbolicator co
 
 #### Source Maps
 
-To get javascript source map processing working, you need to activate sourcemaps, which in turn activates the memcached dependency:
-
-```yaml
-sourcemaps:
-  enabled: true
-```
+To get javascript source map processing working, the Django cache (memcached) is enabled by default, which is also used by 60+ Sentry components for caching.
 
 For details on the background see this blog post: https://engblog.yext.com/post/sentry-js-source-maps
 

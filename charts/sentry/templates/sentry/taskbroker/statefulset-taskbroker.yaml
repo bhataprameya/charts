@@ -12,6 +12,13 @@ metadata:
     heritage: "{{ $root.Release.Service }}"
     role: taskbroker-{{ $broker.name }}
     {{- include "sentry.component.labels" (dict "component" (printf "taskbroker-%s" $broker.name) "ctx" $root) | nindent 4 }}
+  {{- if $root.Values.asHook }}
+  annotations:
+    meta.helm.sh/release-name: "{{ $root.Release.Name }}"
+    meta.helm.sh/release-namespace: "{{ $root.Release.Namespace }}"
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "3"
+  {{- end }}
 spec:
   serviceName: {{ template "sentry.fullname" $root }}-taskbroker-{{ $broker.name }}
   replicas: {{ default $root.Values.sentry.taskBroker.replicas $broker.replicas }}
@@ -68,10 +75,9 @@ spec:
       tolerations:
 {{ toYaml $root.Values.global.tolerations | indent 8 }}
       {{- end }}
-      {{- if $root.Values.sentry.taskBroker.topologySpreadConstraints }}
+{{- $taskBrokerTopologySpreadConstraints := ternary $broker.topologySpreadConstraints $root.Values.sentry.taskBroker.topologySpreadConstraints (hasKey $broker "topologySpreadConstraints") }}
       topologySpreadConstraints:
-{{ toYaml $root.Values.sentry.taskBroker.topologySpreadConstraints | indent 8 }}
-      {{- end }}
+{{ toYaml $taskBrokerTopologySpreadConstraints | indent 8 }}
       {{- if $root.Values.sentry.taskBroker.securityContext }}
       securityContext:
 {{ toYaml $root.Values.sentry.taskBroker.securityContext | indent 8 }}
@@ -96,14 +102,16 @@ spec:
         - name: TASKBROKER_KAFKA_CLUSTER
           value: {{ include "sentry.kafka.bootstrap_servers_string" $root | quote }}
 {{ include "sentry.env" $root | indent 8 }}
+{{ include "sentry.taskbroker.kafka.env" $root | indent 8 }}
 {{- if $root.Values.sentry.taskBroker.env }}
 {{ toYaml $root.Values.sentry.taskBroker.env | indent 8 }}
 {{- end }}
         ports:
         - containerPort: 50051
           name: grpc
+{{- $taskBrokerResources := mergeOverwrite (deepCopy (default dict $root.Values.sentry.taskBroker.resources)) (deepCopy (default dict $broker.resources)) }}
         resources:
-{{ toYaml $root.Values.sentry.taskBroker.resources | indent 10 }}
+{{ toYaml $taskBrokerResources | indent 10 }}
 {{- if $root.Values.sentry.taskBroker.containerSecurityContext }}
         securityContext:
 {{ toYaml $root.Values.sentry.taskBroker.containerSecurityContext | indent 10 }}
@@ -166,6 +174,13 @@ metadata:
     app: {{ template "sentry.fullname" $root }}
     release: "{{ $root.Release.Name }}"
     role: taskbroker-{{ $broker.name }}
+  {{- if $root.Values.asHook }}
+  annotations:
+    meta.helm.sh/release-name: "{{ $root.Release.Name }}"
+    meta.helm.sh/release-namespace: "{{ $root.Release.Namespace }}"
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "3"
+  {{- end }}
 spec:
   ports:
   - port: 50051

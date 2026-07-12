@@ -101,9 +101,10 @@ spec:
           {{- if .Values.sentry.subscriptionConsumerGenericMetrics.noStrictOffsetReset }}
           - "--no-strict-offset-reset"
           {{- end }}
-          {{- if .Values.sentry.subscriptionConsumerGenericMetrics.livenessProbe.enabled }}
           - "--healthcheck-file-path"
           - "/tmp/health.txt"
+          {{- if or .Values.sentry.subscriptionConsumerGenericMetrics.maxBatchSize .Values.sentry.subscriptionConsumerGenericMetrics.concurrency }}
+          - "--"
           {{- end }}
           {{- if .Values.sentry.subscriptionConsumerGenericMetrics.maxBatchSize }}
           - "--max-batch-size"
@@ -113,15 +114,8 @@ spec:
           - "--processes"
           - "{{ .Values.sentry.subscriptionConsumerGenericMetrics.concurrency }}"
           {{- end }}
-        {{- if .Values.sentry.subscriptionConsumerGenericMetrics.livenessProbe.enabled }}
-        livenessProbe:
-          exec:
-            command:
-              - rm
-              - /tmp/health.txt
-          initialDelaySeconds: {{ .Values.sentry.subscriptionConsumerGenericMetrics.livenessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.sentry.subscriptionConsumerGenericMetrics.livenessProbe.periodSeconds }}
-        {{- end }}
+        {{- include "sentry.startupProbe.execHealthcheckFile" (dict "startupProbe" .Values.sentry.subscriptionConsumerGenericMetrics.startupProbe "healthcheckFile" "/tmp/health.txt") | nindent 8 }}
+        {{- include "sentry.livenessProbe.execHealthcheckFile" (dict "livenessProbe" .Values.sentry.subscriptionConsumerGenericMetrics.livenessProbe "healthcheckFile" "/tmp/health.txt") | nindent 8 }}
         env:
         - name: C_FORCE_ROOT
           value: "true"
