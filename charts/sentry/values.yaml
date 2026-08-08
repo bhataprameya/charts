@@ -1,6 +1,7 @@
 # Set this to true to support IPV6 networks
 ipv6: false
 
+
 global:
 
   # Set SAMPLED_DEFAULT_RATE parameter for all projects
@@ -207,6 +208,7 @@ uptimeChecker:
 
 relay:
   enabled: true
+  asHook: true
   annotations: {}
   strategyType: RollingUpdate
   replicas: 1
@@ -264,6 +266,11 @@ relay:
     env: []
     volumes: []
     volumeMounts: []
+  # configRender:
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
   # cache:
   #   envelopeBufferSize: 1000
   # logging:
@@ -423,23 +430,105 @@ sentry:
       #   whenScaled: Retain   # or Delete
     # brokers[].resources -- Optional per-broker container resources; merged over taskBroker.resources (broker keys win).
     # brokers[].topologySpreadConstraints -- Optional per-broker pod topologySpreadConstraints; overriding taskBroker.topologySpreadConstraints (broker list win).
+    # brokers[].kafkaTopics -- Topic map rendered into /etc/taskbroker/config.yml (hyphenated names require YAML, not env).
+    # See https://github.com/getsentry/taskbroker/blob/main/docs/kafka-config-migration.md
     brokers:
       - name: default
-        topic: taskworker
-        consumerGroup: taskworker
         replicas: 1
+        kafkaDeadletterTopic: taskworker-dlq
+        kafkaRetryTopic: taskworker
+        kafkaTopics:
+          taskworker:
+            cluster: default
+            consumerGroup: taskworker
+          taskworker-dlq:
+            cluster: default
+            consumerGroup: taskworker
+            produceOnly: true
       - name: ingest
-        topic: taskworker-ingest
-        consumerGroup: taskworker-ingest
         replicas: 1
+        kafkaDeadletterTopic: taskworker-ingest-dlq
+        kafkaRetryTopic: taskworker-ingest
+        kafkaTopics:
+          taskworker-ingest:
+            cluster: default
+            consumerGroup: taskworker-ingest
+          taskworker-ingest-dlq:
+            cluster: default
+            consumerGroup: taskworker-ingest
+            produceOnly: true
+          profiles:
+            cluster: default
+            consumerGroup: ingest-profiles-consumers-0
+            raw:
+              namespace: ingest.profiling.passthrough
+              application: sentry
+              taskname: sentry.profiles.task.process_profile_from_kafka
+              processingDeadlineDuration: 60
       - name: long
-        topic: taskworker-long
-        consumerGroup: taskworker-long
         replicas: 1
+        kafkaDeadletterTopic: taskworker-long-dlq
+        kafkaRetryTopic: taskworker-long
+        kafkaTopics:
+          taskworker-long:
+            cluster: default
+            consumerGroup: taskworker-long
+          taskworker-long-dlq:
+            cluster: default
+            consumerGroup: taskworker-long
+            produceOnly: true
       - name: products
-        topic: taskworker-products
-        consumerGroup: taskworker-products
         replicas: 1
+        kafkaDeadletterTopic: taskworker-products-dlq
+        kafkaRetryTopic: taskworker-products
+        kafkaTopics:
+          taskworker-products:
+            cluster: default
+            consumerGroup: taskworker-products
+          taskworker-products-dlq:
+            cluster: default
+            consumerGroup: taskworker-products
+            produceOnly: true
+          events-subscription-results:
+            cluster: default
+            consumerGroup: query-subscription-consumer
+            raw:
+              namespace: snuba.subscriptions.events.raw
+              application: sentry
+              taskname: sentry.snuba.query_subscriptions.run.process_events_subscription_from_kafka
+              processingDeadlineDuration: 60
+          transactions-subscription-results:
+            cluster: default
+            consumerGroup: query-subscription-consumer
+            raw:
+              namespace: snuba.subscriptions.transactions.raw
+              application: sentry
+              taskname: sentry.snuba.query_subscriptions.run.process_transactions_subscription_from_kafka
+              processingDeadlineDuration: 60
+          metrics-subscription-results:
+            cluster: default
+            consumerGroup: query-subscription-consumer
+            raw:
+              namespace: snuba.subscriptions.metrics.raw
+              application: sentry
+              taskname: sentry.snuba.query_subscriptions.run.process_metrics_subscription_from_kafka
+              processingDeadlineDuration: 60
+          generic-metrics-subscription-results:
+            cluster: default
+            consumerGroup: query-subscription-consumer
+            raw:
+              namespace: snuba.subscriptions.generic_metrics.raw
+              application: sentry
+              taskname: sentry.snuba.query_subscriptions.run.process_generic_metrics_subscription_from_kafka
+              processingDeadlineDuration: 60
+          subscription-results-eap-items:
+            cluster: default
+            consumerGroup: subscription-results-eap-items
+            raw:
+              namespace: snuba.subscriptions.eap.raw
+              application: sentry
+              taskname: sentry.snuba.query_subscriptions.run.process_eap_subscription_from_kafka
+              processingDeadlineDuration: 60
 
   taskScheduler:
     enabled: true
@@ -516,11 +605,13 @@ sentry:
 
   ingestConsumerAttachments:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
     # maxBatchTimeMs: 20000
-    # maxPollIntervalMs: 30000
+    maxPollIntervalMs: 300000
     env: []
     resources: {}
     #  requests:
@@ -559,7 +650,11 @@ sentry:
     # noStrictOffsetReset: false
 
   ingestConsumerEvents:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -604,7 +699,11 @@ sentry:
     # noStrictOffsetReset: false
 
   ingestConsumerTransactions:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -650,6 +749,8 @@ sentry:
 
   ingestReplayRecordings:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -661,39 +762,7 @@ sentry:
     nodeSelector: {}
     securityContext: {}
     containerSecurityContext: {}
-    # maxPollIntervalMs: 30000
-    tolerations: []
-    podLabels: {}
-    # it's better to use prometheus adapter or keda and scale based on
-    # the size of the queue
-    autoscaling:
-      enabled: false
-      minReplicas: 1
-      maxReplicas: 3
-      targetCPUUtilizationPercentage: 50
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # volumeMounts:
-    #   - mountPath: /dev/shm
-    #     name: dshm
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-
-  ingestProfiles:
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
+    maxPollIntervalMs: 300000
     tolerations: []
     podLabels: {}
     # it's better to use prometheus adapter or keda and scale based on
@@ -718,7 +787,11 @@ sentry:
     # noStrictOffsetReset: false
 
   ingestOccurrences:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -758,7 +831,11 @@ sentry:
     # maxBatchTimeMs: "1000"
 
   ingestFeedback:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -795,6 +872,8 @@ sentry:
 
   ingestMonitors:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -806,7 +885,7 @@ sentry:
     nodeSelector: {}
     securityContext: {}
     containerSecurityContext: {}
-    # maxPollIntervalMs: 30000
+    maxPollIntervalMs: 300000
     tolerations: []
     podLabels: {}
     # it's better to use prometheus adapter or keda and scale based on
@@ -831,7 +910,11 @@ sentry:
     # noStrictOffsetReset: false
 
   monitorsClockTasks:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -864,7 +947,11 @@ sentry:
     # noStrictOffsetReset: false
 
   monitorsClockTick:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -897,7 +984,11 @@ sentry:
     # noStrictOffsetReset: false
 
   billingMetricsConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -934,6 +1025,8 @@ sentry:
 
   genericMetricsConsumer:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -948,7 +1041,7 @@ sentry:
     containerSecurityContext: {}
     tolerations: []
     podLabels: {}
-    # maxPollIntervalMs: "30000"
+    maxPollIntervalMs: 300000
     # logLevel: "info"
     # it's better to use prometheus adapter or keda and scale based on
     # the size of the queue
@@ -973,6 +1066,8 @@ sentry:
 
   metricsConsumer:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -988,7 +1083,7 @@ sentry:
     tolerations: []
     podLabels: {}
     # logLevel: "info"
-    # maxPollIntervalMs: "30000"
+    maxPollIntervalMs: 300000
     # it's better to use prometheus adapter or keda and scale based on
     # the size of the queue
     autoscaling:
@@ -1010,86 +1105,12 @@ sentry:
     # autoOffsetReset: "earliest"
     # noStrictOffsetReset: false
 
-  subscriptionConsumerResultsEapItems:
-    enabled: true
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    topologySpreadConstraints: []
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    sidecars: []
-    volumes: []
-    volumeMounts: []
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-
-  subscriptionConsumerEvents:
-    enabled: true
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 200m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-    volumeMounts: []
-
-  subscriptionConsumerTransactions:
-    enabled: true
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 200m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-    volumeMounts: []
-
   uptimeResults:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1116,7 +1137,11 @@ sentry:
     volumeMounts: []
 
   postProcessForwardErrors:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1143,7 +1168,11 @@ sentry:
     # noStrictOffsetReset: false
 
   postProcessForwardTransactions:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # processes: 1
@@ -1171,7 +1200,11 @@ sentry:
     # noStrictOffsetReset: false
 
   postProcessForwardIssuePlatform:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1198,7 +1231,11 @@ sentry:
     # noStrictOffsetReset: false
 
   processSegments:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -1228,7 +1265,11 @@ sentry:
     # maxBatchTimeMs: "1000"
 
   processSpans:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     # concurrency: 4
@@ -1256,64 +1297,6 @@ sentry:
     # noStrictOffsetReset: false
     # maxBatchSize: "500"
     # maxBatchTimeMs: "1000"
-
-  subscriptionConsumerGenericMetrics:
-    enabled: true
-    annotations: {}
-    replicas: 1
-    # concurrency: 1
-    # maxBatchSize: "3"
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 200m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    volumeMounts: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-
-  subscriptionConsumerMetrics:
-    enabled: true
-    annotations: {}
-    replicas: 1
-    # concurrency: 1
-    # maxBatchSize: "3"
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 200m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    volumeMounts: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
 
   cleanup:
     successfulJobsHistoryLimit: 5
@@ -1402,7 +1385,11 @@ snuba:
     volumeMounts: []
 
   consumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1438,7 +1425,11 @@ snuba:
     #       medium: Memory
 
   eapItemsConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1448,6 +1439,7 @@ snuba:
     securityContext: {}
     topologySpreadConstraints: []
     containerSecurityContext: {}
+    # maxPollIntervalMs: 30000
     tolerations: []
     podLabels: {}
     sidecars: []
@@ -1474,7 +1466,11 @@ snuba:
     #       medium: Memory
 
   outcomesConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1489,7 +1485,7 @@ snuba:
     sidecars: []
     # autoOffsetReset: "earliest"
     # noStrictOffsetReset: false
-    maxBatchSize: "3"
+    # maxBatchSize: "3"
     livenessProbe:
       enabled: true
       periodSeconds: 30
@@ -1509,7 +1505,9 @@ snuba:
     #     emptyDir:
     #       medium: Memory
 
-  outcomesBillingConsumer:
+  outcomesAcceptedConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
     annotations: {}
     replicas: 1
@@ -1520,13 +1518,51 @@ snuba:
     securityContext: {}
     topologySpreadConstraints: []
     containerSecurityContext: {}
-    # maxPollIntervalMs: 30000
     tolerations: []
     podLabels: {}
     sidecars: []
     # autoOffsetReset: "earliest"
     # noStrictOffsetReset: false
-    maxBatchSize: "3"
+    # maxBatchSize: "3"
+    # consumerGroup: accepted_outcomes
+    # outcomesAcceptedTopic: outcomes-billing
+    # bucketInterval: 60
+    # rawTopic: ""  # defaults to the eap_items storage topic (snuba-items)
+    # No liveness/startup probe: accepted-outcomes-consumer does not write --health-check-file yet.
+    # processes: ""
+    # inputBlockSize: ""
+    # outputBlockSize: ""
+    maxBatchTimeMs: 750
+    # queuedMaxMessagesKbytes: ""
+    # queuedMinMessages: ""
+    # volumeMounts:
+    #   - mountPath: /dev/shm
+    #     name: dshm
+    # volumes:
+    #   - name: dshm
+    #     emptyDir:
+    #       medium: Memory
+
+  outcomesBillingConsumer:
+    enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
+    annotations: {}
+    replicas: 1
+    env: []
+    resources: {}
+    affinity: {}
+    nodeSelector: {}
+    securityContext: {}
+    topologySpreadConstraints: []
+    containerSecurityContext: {}
+    maxPollIntervalMs: 300000
+    tolerations: []
+    podLabels: {}
+    sidecars: []
+    # autoOffsetReset: "earliest"
+    # noStrictOffsetReset: false
+    # maxBatchSize: "3"
     livenessProbe:
       enabled: true
       periodSeconds: 30
@@ -1562,6 +1598,7 @@ snuba:
     sidecars: []
     # autoOffsetReset: "earliest"
     # maxBatchTimeMs: ""
+    # maxPollIntervalMs: 30000
     # queuedMaxMessagesKbytes: ""
     # queuedMinMessages: ""
     volumes: []
@@ -1569,7 +1606,11 @@ snuba:
     # noStrictOffsetReset: false
 
   metricsConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1601,6 +1642,8 @@ snuba:
 
   subscriptionConsumerEapItems:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1625,6 +1668,8 @@ snuba:
 
   subscriptionConsumerEvents:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1649,6 +1694,8 @@ snuba:
 
   subscriptionConsumerGenericMetricsDistributions:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1673,6 +1720,8 @@ snuba:
 
   subscriptionConsumerGenericMetricsSets:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1697,6 +1746,8 @@ snuba:
 
   subscriptionConsumerGenericMetricsCounters:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1721,6 +1772,8 @@ snuba:
 
   subscriptionConsumerGenericMetricsGauges:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1744,7 +1797,11 @@ snuba:
     # noStrictOffsetReset: false
 
   genericMetricsGaugesConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1775,7 +1832,11 @@ snuba:
     # noStrictOffsetReset: false
 
   genericMetricsCountersConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1806,7 +1867,11 @@ snuba:
     # noStrictOffsetReset: false
 
   genericMetricsDistributionConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1837,7 +1902,11 @@ snuba:
     # noStrictOffsetReset: false
 
   genericMetricsSetsConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1869,6 +1938,8 @@ snuba:
 
   subscriptionConsumerMetrics:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1895,6 +1966,8 @@ snuba:
 
   subscriptionConsumerTransactions:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1922,6 +1995,8 @@ snuba:
 
   replaysConsumer:
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1931,7 +2006,7 @@ snuba:
     securityContext: {}
     topologySpreadConstraints: []
     containerSecurityContext: {}
-    # maxPollIntervalMs: 30000
+    maxPollIntervalMs: 300000
     tolerations: []
     podLabels: {}
     sidecars: []
@@ -1958,7 +2033,11 @@ snuba:
     #       medium: Memory
 
   transactionsConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -1994,6 +2073,10 @@ snuba:
     #       medium: Memory
 
   profilingProfilesConsumer:
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     annotations: {}
     replicas: 1
     env: []
@@ -2030,6 +2113,10 @@ snuba:
     #       medium: Memory
 
   profilingFunctionsConsumer:
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     annotations: {}
     replicas: 1
     env: []
@@ -2065,6 +2152,10 @@ snuba:
     #       medium: Memory
 
   profilingChunksConsumer:
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     annotations: {}
     replicas: 1
     env: []
@@ -2100,7 +2191,11 @@ snuba:
     #       medium: Memory
 
   issueOccurrenceConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -2136,7 +2231,11 @@ snuba:
     #       medium: Memory
 
   groupAttributesConsumer:
+    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
+    maxPollIntervalMs: 300000
     enabled: true
+    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
+    strategyType: null
     annotations: {}
     replicas: 1
     env: []
@@ -2525,6 +2624,13 @@ discord: {}
 #   existingSecretClientSecret: ""      # by default "client-secret"
 #   existingSecretBotToken: ""          # by default "bot-token"
 #   Reference -> https://develop.sentry.dev/integrations/discord/
+
+pagerduty: {}
+# pagerduty:
+#   appId: ""                           # PagerDuty App ID (public identifier, e.g. "PV5SD0T"), not a secret
+#   existingSecret: "xxxxx"
+#   existingSecretAppId: ""             # by default "app-id"
+#   Reference -> https://develop.sentry.dev/integrations/pagerduty/
 
 openai: {}
 #   existingSecret: "xxxxx"
@@ -3188,6 +3294,17 @@ kafka:
       - name: taskworker-symbolication-dlq
       - name: taskworker-usage
       - name: taskworker-usage-dlq
+      # Pre-consolidation topics: namespaces that used to route here directly
+      # now route through taskworker-ingest (see taskworker.route.overrides
+      # above), but these topics can still hold in-flight/retained data and
+      # aren't safe to just stop declaring.
+      - name: taskworker-buffer
+      - name: taskworker-cutover
+      - name: taskworker-email
+      - name: taskworker-ingest-attachments
+      - name: taskworker-ingest-errors-postprocess
+      - name: taskworker-ingest-profiling
+      - name: taskworker-workflows-engine
   listeners:
     client:
       protocol: "PLAINTEXT"

@@ -1,5 +1,44 @@
 # Changelog
 
+## [33.1.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.0.0...sentry-v33.1.0) (2026-07-26)
+
+
+### Features
+
+* upgrade sentry to v26.7.1 ([#2263](https://github.com/sentry-kubernetes/charts/issues/2263)) ([d02cfb5](https://github.com/sentry-kubernetes/charts/commit/d02cfb51bac385935082a0cc458cbe83bca8fd02))
+
+
+### Bug Fixes
+
+* use Recreate strategy for single-partition Kafka consumers ([#2258](https://github.com/sentry-kubernetes/charts/issues/2258)) ([c261d9f](https://github.com/sentry-kubernetes/charts/commit/c261d9fe5d6d12279a49a863b4e5265d387a2cae))
+
+## [33.0.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v32.3.0...sentry-v33.0.0) (2026-07-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* upgrade sentry to v26.7.0 ([#2257](https://github.com/sentry-kubernetes/charts/issues/2257))
+
+### Features
+
+* charts/sentry: add maxPollIntervalMs for snuba eapItemsConsumer ([#2259](https://github.com/sentry-kubernetes/charts/issues/2259)) ([bdbbb72](https://github.com/sentry-kubernetes/charts/commit/bdbbb729cd3c1a2d8772605727c1a2b812ca5c72))
+* upgrade sentry to v26.7.0 ([#2257](https://github.com/sentry-kubernetes/charts/issues/2257)) ([4743524](https://github.com/sentry-kubernetes/charts/commit/47435240145991bf7c4d85df554c875cdad9619c))
+
+## [32.3.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v32.2.0...sentry-v32.3.0) (2026-07-13)
+
+
+### Features
+
+* charts/sentry: add configurable PagerDuty integration ([#2252](https://github.com/sentry-kubernetes/charts/issues/2252)) ([45ef34b](https://github.com/sentry-kubernetes/charts/commit/45ef34ba393bf371281402df38e6e335ac64766b))
+
+
+### Bug Fixes
+
+* add relay.asHook for rolling updates ([#2256](https://github.com/sentry-kubernetes/charts/issues/2256)) ([4f027e7](https://github.com/sentry-kubernetes/charts/commit/4f027e761ebf7b714d5b23bd63625a2310c36ef3))
+* charts/sentry: render volumeMounts key for global.volumeMounts ([#2253](https://github.com/sentry-kubernetes/charts/issues/2253)) ([6338bc7](https://github.com/sentry-kubernetes/charts/commit/6338bc71339a5273ed2caf5031023066eda8bfd4))
+* make relay config-render initContainer image configurable ([#2242](https://github.com/sentry-kubernetes/charts/issues/2242)) ([#2255](https://github.com/sentry-kubernetes/charts/issues/2255)) ([855caa6](https://github.com/sentry-kubernetes/charts/commit/855caa64766a309813c8501fe40eec2ce273166d))
+* make S3 access_key/secret_key conditional for IRSA/Pod Identity support ([#2062](https://github.com/sentry-kubernetes/charts/issues/2062)) ([dcae06f](https://github.com/sentry-kubernetes/charts/commit/dcae06f0859486cdd65a5ad3c6502adb9484ee4d))
+
 ## [32.2.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v32.1.0...sentry-v32.2.0) (2026-06-11)
 
 

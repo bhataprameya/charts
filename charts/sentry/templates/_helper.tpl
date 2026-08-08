@@ -38,6 +38,22 @@ livenessProbe:
 {{- end -}}
 
 {{/*
+  Recreate when replicas=1 (single-partition consumer, sentry-kubernetes/charts#2238),
+  else RollingUpdate. Explicit strategyType always wins.
+  Args: strategyType, replicas, autoscaling (all from .Values.<x>).
+*/}}
+{{- define "sentry.kafkaConsumer.strategyType" -}}
+{{- $autoscaling := .autoscaling | default dict -}}
+{{- if .strategyType -}}
+{{- .strategyType -}}
+{{- else if and (eq (.replicas | int) 1) (not $autoscaling.enabled) -}}
+Recreate
+{{- else -}}
+RollingUpdate
+{{- end -}}
+{{- end -}}
+
+{{/*
   startupProbe block for kafka-consumer / worker deployments.
   Absorbs cold-start latency so liveness can't fire during startup.
 
@@ -91,6 +107,14 @@ startupProbe:
 {{- default "busybox" .Values.hooks.dbCheck.image.repository -}}
 :
 {{- default "1.38.0" .Values.hooks.dbCheck.image.tag -}}
+{{- end -}}
+
+{{- define "relay.configRender.image" -}}
+{{- $configRender := default (dict) .Values.relay.configRender -}}
+{{- $image := default (dict) $configRender.image -}}
+{{- default "busybox" $image.repository -}}
+:
+{{- default "1.36" $image.tag -}}
 {{- end -}}
 
 {{- define "vroom.image" -}}
@@ -666,51 +690,30 @@ Set external Clickhouse password from existingSecret
 {{- end -}}
 
 {{/*
-TaskBroker Kafka environment variables.
-The TaskBroker binary (Rust) reads Kafka config from TASKBROKER_KAFKA_* prefixed env vars,
-not the standard KAFKA_SASL_* vars used by Python-based Sentry/Snuba components.
-This helper auto-injects the required TASKBROKER_KAFKA_* and TASKBROKER_KAFKA_DEADLETTER_*
-env vars when externalKafka is configured with SASL authentication.
-See: https://github.com/sentry-kubernetes/charts/issues/2088
+TaskBroker Kafka cluster address/auth via TASKBROKER_KAFKA_CLUSTERS__DEFAULT__*.
+Topic maps (including hyphenated names) live in the mounted config.yml ConfigMap.
+See: https://github.com/getsentry/taskbroker/blob/main/docs/kafka-config-migration.md
 */}}
 {{- define "sentry.taskbroker.kafka.env" -}}
-{{- if not .Values.kafka.enabled }}
-{{- $securityProtocol := include "sentry.kafka.security_protocol" . -}}
-{{- $bootstrapServers := include "sentry.kafka.bootstrap_servers_string" . -}}
-- name: TASKBROKER_KAFKA_SECURITY_PROTOCOL
-  value: {{ $securityProtocol | quote }}
-- name: TASKBROKER_KAFKA_DEADLETTER_CLUSTER
-  value: {{ $bootstrapServers | quote }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SECURITY_PROTOCOL
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS
+  value: {{ include "sentry.kafka.bootstrap_servers_string" . | quote }}
+{{ if not .Values.kafka.enabled -}}
+{{- $securityProtocol := include "sentry.kafka.security_protocol" . }}
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SECURITY_PROTOCOL
   value: {{ $securityProtocol | quote }}
 {{- if regexMatch "^SASL_" $securityProtocol }}
 {{- if .Values.externalKafka.sasl.existingSecret }}
-- name: TASKBROKER_KAFKA_SASL_MECHANISM
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_MECHANISM
   valueFrom:
     secretKeyRef:
       name: {{ .Values.externalKafka.sasl.existingSecret }}
       key: {{ default "mechanism" .Values.externalKafka.sasl.existingSecretKeys.mechanism }}
-- name: TASKBROKER_KAFKA_SASL_USERNAME
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_USERNAME
   valueFrom:
     secretKeyRef:
       name: {{ .Values.externalKafka.sasl.existingSecret }}
       key: {{ default "username" .Values.externalKafka.sasl.existingSecretKeys.username }}
-- name: TASKBROKER_KAFKA_SASL_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: {{ .Values.externalKafka.sasl.existingSecret }}
-      key: {{ default "password" .Values.externalKafka.sasl.existingSecretKeys.password }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_MECHANISM
-  valueFrom:
-    secretKeyRef:
-      name: {{ .Values.externalKafka.sasl.existingSecret }}
-      key: {{ default "mechanism" .Values.externalKafka.sasl.existingSecretKeys.mechanism }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_USERNAME
-  valueFrom:
-    secretKeyRef:
-      name: {{ .Values.externalKafka.sasl.existingSecret }}
-      key: {{ default "username" .Values.externalKafka.sasl.existingSecretKeys.username }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_PASSWORD
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ .Values.externalKafka.sasl.existingSecret }}
@@ -720,21 +723,15 @@ See: https://github.com/sentry-kubernetes/charts/issues/2088
 {{- $saslUsername := include "sentry.kafka.sasl_username" . -}}
 {{- $saslPassword := include "sentry.kafka.sasl_password" . -}}
 {{- if not (eq "None" $saslMechanism) }}
-- name: TASKBROKER_KAFKA_SASL_MECHANISM
-  value: {{ $saslMechanism | quote }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_MECHANISM
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_MECHANISM
   value: {{ $saslMechanism | quote }}
 {{- end }}
 {{- if not (eq "None" $saslUsername) }}
-- name: TASKBROKER_KAFKA_SASL_USERNAME
-  value: {{ $saslUsername | quote }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_USERNAME
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_USERNAME
   value: {{ $saslUsername | quote }}
 {{- end }}
 {{- if not (eq "None" $saslPassword) }}
-- name: TASKBROKER_KAFKA_SASL_PASSWORD
-  value: {{ $saslPassword | quote }}
-- name: TASKBROKER_KAFKA_DEADLETTER_SASL_PASSWORD
+- name: TASKBROKER_KAFKA_CLUSTERS__DEFAULT__SASL_PASSWORD
   value: {{ $saslPassword | quote }}
 {{- end }}
 {{- end }}
@@ -1089,6 +1086,17 @@ Set discord
     secretKeyRef:
       name: {{ .Values.discord.existingSecret }}
       key: {{ default "bot-token" .Values.discord.existingSecretBotToken }}
+{{- end }}
+
+{{/*
+Set pagerduty
+*/}}
+{{- if .Values.pagerduty.existingSecret }}
+- name: PAGERDUTY_APP_ID
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.pagerduty.existingSecret }}
+      key: {{ default "app-id" .Values.pagerduty.existingSecretAppId }}
 {{- end }}
 
 {{/*
