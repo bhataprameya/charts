@@ -3094,6 +3094,12 @@ externalClickhouse:
   username: default
   password: ""
   database: default
+  # -- Use TLS for ClickHouse connections
+  secure: false
+  # -- Verify the ClickHouse TLS certificate. When false, the cleanup client accepts invalid certificates
+  verify: false
+  # -- Path to a custom ClickHouse CA certificate bundle mounted in Snuba containers
+  ca_certs: ""
   singleNode: true
   # existingSecret: secret-name
   ## set existingSecretKey if key name inside existingSecret is different from 'clickhouse-password'

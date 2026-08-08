@@ -83,6 +83,12 @@ spec:
                 if [ -n "$CLICKHOUSE_PASSWORD" ]; then
                   CH_ARGS+=(--password="$CLICKHOUSE_PASSWORD")
                 fi
+                {{ if .Values.externalClickhouse.secure }}
+                CH_ARGS+=(--secure)
+                {{ if not .Values.externalClickhouse.verify }}
+                CH_ARGS+=(--accept-invalid-certificate)
+                {{ end }}
+                {{ end }}
 
                 # Function to discover tables
                 discover_tables() {

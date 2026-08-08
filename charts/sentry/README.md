@@ -64,13 +64,16 @@ Note: this table is incomplete, so have a look at the values.yaml in case you mi
 | config.web.maxRequestsDelta | int | `500` |  |
 | config.web.maxWorkerLifetime | int | `86400` |  |
 | discord | object | `{}` |  |
+| externalClickhouse.ca_certs | string | `""` | Path to a custom ClickHouse CA certificate bundle mounted in Snuba containers |
 | externalClickhouse.database | string | `"default"` |  |
 | externalClickhouse.host | string | `"clickhouse"` |  |
 | externalClickhouse.httpPort | int | `8123` |  |
 | externalClickhouse.password | string | `""` |  |
+| externalClickhouse.secure | bool | `false` | Use TLS for ClickHouse connections |
 | externalClickhouse.singleNode | bool | `true` |  |
 | externalClickhouse.tcpPort | int | `9000` |  |
 | externalClickhouse.username | string | `"default"` |  |
+| externalClickhouse.verify | bool | `false` | Verify the ClickHouse TLS certificate. When false, the cleanup client accepts invalid certificates |
 | externalKafka.cluster | list | `[]` | Multi hosts and ports of external Kafka |
 | externalKafka.host | string | `"kafka-confluent"` | Hostname or IP address of external Kafka |
 | externalKafka.port | int | `9092` | Port for external Kafka |
