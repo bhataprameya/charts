@@ -1,5 +1,72 @@
 # Changelog
 
+## [33.8.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.7.0...sentry-v33.8.0) (2026-08-24)
+
+
+### Features
+
+* **ci:** publish helm charts as OCI artifacts to GHCR ([#2292](https://github.com/sentry-kubernetes/charts/issues/2292)) ([339aae7](https://github.com/sentry-kubernetes/charts/commit/339aae7426ad1d23cf88ae367c7847e2d78bd4da))
+
+## [33.7.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.6.0...sentry-v33.7.0) (2026-08-21)
+
+
+### Features
+
+* taskbroker postgresql store ([#2286](https://github.com/sentry-kubernetes/charts/issues/2286)) ([2f057a7](https://github.com/sentry-kubernetes/charts/commit/2f057a7bd90ad6d1534914fa4d5d9626d39f9d33))
+
+## [33.6.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.5.0...sentry-v33.6.0) (2026-08-20)
+
+
+### Features
+
+* charts/sentry: source S3 and integration credentials from a Secret ([#2279](https://github.com/sentry-kubernetes/charts/issues/2279)) ([87bb399](https://github.com/sentry-kubernetes/charts/commit/87bb399c31f7f6e5b8c9bf14505e88dea01c520a))
+
+## [33.5.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.4.0...sentry-v33.5.0) (2026-08-19)
+
+
+### Features
+
+* charts/sentry: add existingSecret support for GeoIP credentials ([#2284](https://github.com/sentry-kubernetes/charts/issues/2284)) ([b9d3d6d](https://github.com/sentry-kubernetes/charts/commit/b9d3d6d4b4e231b0c3ce4b0406820e00cf69b4fa))
+
+## [33.4.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.3.1...sentry-v33.4.0) (2026-08-18)
+
+
+### Features
+
+* upgrade to sentry v26.8.0 ([#2281](https://github.com/sentry-kubernetes/charts/issues/2281)) ([86be27f](https://github.com/sentry-kubernetes/charts/commit/86be27faee920e0e662e17926301adc22b02c501))
+
+## [33.3.1](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.3.0...sentry-v33.3.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **sentry:** update clickhouse cleanup cronjob template ([#2270](https://github.com/sentry-kubernetes/charts/issues/2270)) ([74e9fc8](https://github.com/sentry-kubernetes/charts/commit/74e9fc861eeb3f63a38140bfb061a3b486c3f25d))
+
+## [33.3.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.2.0...sentry-v33.3.0) (2026-08-10)
+
+
+### Features
+
+* upgrade to v26.7.2 ([#2276](https://github.com/sentry-kubernetes/charts/issues/2276)) ([4fc47a7](https://github.com/sentry-kubernetes/charts/commit/4fc47a780d22ca5e73f544298e1d85ff8cd6918c))
+
+
+### Bug Fixes
+
+* charts/sentry: support TLS in ClickHouse cleanup ([#2274](https://github.com/sentry-kubernetes/charts/issues/2274)) ([58ec7f9](https://github.com/sentry-kubernetes/charts/commit/58ec7f9b5d5318afd740a69d9441fdb7a7c1e9a4))
+
+## [33.2.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.1.0...sentry-v33.2.0) (2026-07-31)
+
+
+### Features
+
+* charts/sentry: add maxPollIntervalMs for snuba replacer ([#2266](https://github.com/sentry-kubernetes/charts/issues/2266)) ([52c48ca](https://github.com/sentry-kubernetes/charts/commit/52c48cae85bd150b04e89ca6517e1147e9e55aef))
+
+
+### Bug Fixes
+
+* charts/sentry: add missing taskworker topics to default provisioning list ([#2267](https://github.com/sentry-kubernetes/charts/issues/2267)) ([7c5113e](https://github.com/sentry-kubernetes/charts/commit/7c5113e77f0559b82d4b19e1470ae74625e8a59e))
+* extend Recreate/RollingUpdate strategy to remaining Kafka consumer deployments ([#2238](https://github.com/sentry-kubernetes/charts/issues/2238)) ([#2269](https://github.com/sentry-kubernetes/charts/issues/2269)) ([e37c168](https://github.com/sentry-kubernetes/charts/commit/e37c168c55051a480a0a13df906a8db8863f4fa3))
+
 ## [33.1.0](https://github.com/sentry-kubernetes/charts/compare/sentry-v33.0.0...sentry-v33.1.0) (2026-07-26)
 
 
