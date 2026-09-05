@@ -778,6 +778,46 @@ See: https://github.com/getsentry/taskbroker/blob/main/docs/kafka-config-migrati
 {{- define "uptimeChecker.env" -}}
 - name: UPTIME_CHECKER_RESULTS_KAFKA_CLUSTER
   value: {{ include "sentry.kafka.bootstrap_servers_string" . | quote }}
+{{- if not .Values.kafka.enabled -}}
+{{- $securityProtocol := include "sentry.kafka.security_protocol" . }}
+- name: UPTIME_CHECKER_KAFKA_SECURITY_PROTOCOL
+  value: {{ $securityProtocol | lower | quote }}
+{{- if regexMatch "^SASL_" $securityProtocol }}
+{{- if .Values.externalKafka.sasl.existingSecret }}
+- name: UPTIME_CHECKER_KAFKA_SASL_MECHANISM
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "mechanism" .Values.externalKafka.sasl.existingSecretKeys.mechanism }}
+- name: UPTIME_CHECKER_KAFKA_SASL_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "username" .Values.externalKafka.sasl.existingSecretKeys.username }}
+- name: UPTIME_CHECKER_KAFKA_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalKafka.sasl.existingSecret }}
+      key: {{ default "password" .Values.externalKafka.sasl.existingSecretKeys.password }}
+{{- else }}
+{{- $saslMechanism := include "sentry.kafka.sasl_mechanism" . -}}
+{{- $saslUsername := include "sentry.kafka.sasl_username" . -}}
+{{- $saslPassword := include "sentry.kafka.sasl_password" . -}}
+{{- if not (eq "None" $saslMechanism) }}
+- name: UPTIME_CHECKER_KAFKA_SASL_MECHANISM
+  value: {{ $saslMechanism | quote }}
+{{- end }}
+{{- if not (eq "None" $saslUsername) }}
+- name: UPTIME_CHECKER_KAFKA_SASL_USERNAME
+  value: {{ $saslUsername | quote }}
+{{- end }}
+{{- if not (eq "None" $saslPassword) }}
+- name: UPTIME_CHECKER_KAFKA_SASL_PASSWORD
+  value: {{ $saslPassword | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- /* Expose Redis password from secret if configured to avoid rendering secrets inline */}}
 {{- if and (.Values.redis.enabled) (.Values.redis.auth.existingSecret) }}
 - name: HELM_CHARTS_SENTRY_REDIS_PASSWORD_CONTROLLED
