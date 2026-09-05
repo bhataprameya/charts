@@ -778,12 +778,7 @@ See: https://github.com/getsentry/taskbroker/blob/main/docs/kafka-config-migrati
 {{- define "uptimeChecker.env" -}}
 - name: UPTIME_CHECKER_RESULTS_KAFKA_CLUSTER
   value: {{ include "sentry.kafka.bootstrap_servers_string" . | quote }}
-{{- if not .Values.kafka.enabled -}}
-{{- $securityProtocol := include "sentry.kafka.security_protocol" . }}
-- name: UPTIME_CHECKER_KAFKA_SECURITY_PROTOCOL
-  value: {{ $securityProtocol | lower | quote }}
-{{- if regexMatch "^SASL_" $securityProtocol }}
-{{- if .Values.externalKafka.sasl.existingSecret }}
+{{- if and (not .Values.kafka.enabled) .Values.externalKafka.sasl.existingSecret }}
 - name: UPTIME_CHECKER_KAFKA_SASL_MECHANISM
   valueFrom:
     secretKeyRef:
@@ -800,24 +795,24 @@ See: https://github.com/getsentry/taskbroker/blob/main/docs/kafka-config-migrati
       name: {{ .Values.externalKafka.sasl.existingSecret }}
       key: {{ default "password" .Values.externalKafka.sasl.existingSecretKeys.password }}
 {{- else }}
-{{- $saslMechanism := include "sentry.kafka.sasl_mechanism" . -}}
-{{- $saslUsername := include "sentry.kafka.sasl_username" . -}}
-{{- $saslPassword := include "sentry.kafka.sasl_password" . -}}
-{{- if not (eq "None" $saslMechanism) }}
+{{- $sentryKafkaSaslMechanism := include "sentry.kafka.sasl_mechanism" . -}}
+{{- if not (eq "None" $sentryKafkaSaslMechanism) }}
 - name: UPTIME_CHECKER_KAFKA_SASL_MECHANISM
-  value: {{ $saslMechanism | quote }}
+  value: {{ $sentryKafkaSaslMechanism | quote }}
 {{- end }}
-{{- if not (eq "None" $saslUsername) }}
+{{- $sentryKafkaSaslUsername := include "sentry.kafka.sasl_username" . -}}
+{{- if not (eq "None" $sentryKafkaSaslUsername) }}
 - name: UPTIME_CHECKER_KAFKA_SASL_USERNAME
-  value: {{ $saslUsername | quote }}
+  value: {{ $sentryKafkaSaslUsername | quote }}
 {{- end }}
-{{- if not (eq "None" $saslPassword) }}
+{{- $sentryKafkaSaslPassword := include "sentry.kafka.sasl_password" . -}}
+{{- if not (eq "None" $sentryKafkaSaslPassword) }}
 - name: UPTIME_CHECKER_KAFKA_SASL_PASSWORD
-  value: {{ $saslPassword | quote }}
+  value: {{ $sentryKafkaSaslPassword | quote }}
 {{- end }}
 {{- end }}
-{{- end }}
-{{- end }}
+- name: UPTIME_CHECKER_KAFKA_SECURITY_PROTOCOL
+  value: {{ include "sentry.kafka.security_protocol" . | lower | quote }}
 {{- /* Expose Redis password from secret if configured to avoid rendering secrets inline */}}
 {{- if and (.Values.redis.enabled) (.Values.redis.auth.existingSecret) }}
 - name: HELM_CHARTS_SENTRY_REDIS_PASSWORD_CONTROLLED
