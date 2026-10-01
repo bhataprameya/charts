@@ -4,9 +4,7 @@
 
 This chart relies on several external services for data storage and message brokering. While bundled versions are provided for testing and development, **production deployments should use external services**.
 
-Sentry 26.9.0 requires **external ClickHouse 25.8.16.10001 or newer**. The examples use `25.8.28.10001.altinitystable`, matching upstream self-hosted. Read the [26.9.0 upgrade guide](docs/UPGRADE.md#upgrading-to-sentry-2690) before upgrading.
-
-Sentry, Snuba, Relay, Symbolicator, Vroom, uptime-checker, Taskbroker, and Launchpad default to their `ghcr.io/getsentry` images tagged with the chart's `appVersion`. Review any `images.<component>.tag` overrides when upgrading.
+Currently, using an **external ClickHouse is a requirement** as the bundled version is deprecated.
 
 Please refer to the [External Services Documentation](docs/external-services.md) for detailed setup instructions.
 
