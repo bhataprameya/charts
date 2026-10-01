@@ -8,12 +8,9 @@ This guide outlines how to configure the various external services required by S
 
 **Status: REQUIRED**
 
-The bundled ClickHouse chart has been removed. Sentry 26.9.0 requires an external ClickHouse endpoint running **25.8.16.10001 or newer**; the examples use `25.8.28.10001.altinitystable` from upstream self-hosted.
+The bundled ClickHouse chart has been removed. You must provide an external ClickHouse endpoint.
 
-Snuba connects over HTTP(S) using `externalClickhouse.httpPort` (default `8123`). The optional `snuba.cleanup` job uses the native client on `externalClickhouse.tcpPort` (default `9000`). For TLS, set `externalClickhouse.secure` and the appropriate HTTPS/native TLS ports; configure certificate verification with `externalClickhouse.verify` and `externalClickhouse.ca_certs`.
-
-- [Clustered ClickHouse setup](../../../README.md#external-clickhouse-configuration)
-- [Single-node ClickHouse setup](../../../clickhouse-single-install.md)
+- [ClickHouse Setup Guide](external-clickhouse.md)
 
 ## Kafka
 
