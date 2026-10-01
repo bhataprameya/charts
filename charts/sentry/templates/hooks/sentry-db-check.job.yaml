@@ -1,6 +1,6 @@
 {{- if and .Values.hooks.enabled .Values.hooks.dbCheck.enabled -}}
 {{- $clickhouseHost := include "sentry.clickhouse.host" . -}}
-{{- $clickhousePort := include "sentry.clickhouse.port" . -}}
+{{- $clickhousePort := include "sentry.clickhouse.http_port" . -}}
 {{- $kafkaHost := include "sentry.kafka.host" . -}}
 {{- $kafkaPort := include "sentry.kafka.port" . -}}
 {{- $kafkaControllerPort := include "sentry.kafka.controller_port" . -}}
@@ -77,7 +77,7 @@ spec:
           - /bin/sh
           - -c
           - |
-            echo "Checking if clickhouse is up"
+            echo "Checking if the ClickHouse HTTP endpoint is up"
             CLICKHOUSE_STATUS=0
             while [ $CLICKHOUSE_STATUS -eq 0 ]; do
               CLICKHOUSE_STATUS=1

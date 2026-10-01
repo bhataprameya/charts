@@ -28,9 +28,11 @@
 livenessProbe:
   exec:
     command:
-      - sh
+      - python3
       - -c
-      - 'test $(($(date +%s) - $(stat -c %Y {{ $file }} 2>/dev/null || echo 0))) -lt {{ $fresh }}'
+      - 'import os, sys, time; sys.exit(not (os.path.isfile(sys.argv[1]) and time.time() - os.path.getmtime(sys.argv[1]) < float(sys.argv[2])))'
+      - {{ $file | quote }}
+      - {{ $fresh | quote }}
 {{- with $probeConfig }}
 {{- toYaml . | nindent 2 }}
 {{- end }}
@@ -72,9 +74,10 @@ RollingUpdate
 startupProbe:
   exec:
     command:
-      - test
-      - -f
-      - {{ $file }}
+      - python3
+      - -c
+      - 'import os, sys; sys.exit(not os.path.isfile(sys.argv[1]))'
+      - {{ $file | quote }}
 {{- with $probeConfig }}
 {{- toYaml . | nindent 2 }}
 {{- end }}

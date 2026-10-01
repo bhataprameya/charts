@@ -4,7 +4,7 @@ Sentry is a cross-platform crash reporting and aggregation platform.
 
 ## External ClickHouse Configuration
 
-Bundled ClickHouse chart dependencies are legacy and may receive limited updates. It is recommended to use an externally managed ClickHouse deployment, such as [Altinity ClickHouse Operator](https://github.com/Altinity/clickhouse-operator).
+Sentry 26.9.0 requires external ClickHouse **25.8.16.10001 or newer**. The examples below use `25.8.28.10001.altinitystable`, matching upstream self-hosted. Manage ClickHouse separately, for example with [Altinity ClickHouse Operator](https://github.com/Altinity/clickhouse-operator), and read the [26.9.0 upgrade guide](charts/sentry/docs/UPGRADE.md#upgrading-to-sentry-2690) before upgrading an existing installation.
 
 ### Step 1: Install Altinity ClickHouse Operator
 
@@ -62,7 +62,7 @@ spec:
         spec:
           containers:
             - name: clickhouse-keeper
-              image: altinity/clickhouse-keeper:25.3.6.10034.altinitystable
+              image: altinity/clickhouse-keeper:25.8.28.10001.altinitystable
           affinity:
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -126,7 +126,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: altinity/clickhouse-server:25.3.6.10034.altinitystable
+              image: altinity/clickhouse-server:25.8.28.10001.altinitystable
           affinity:
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:

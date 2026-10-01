@@ -134,6 +134,9 @@ sentry.conf.py: |-
 
   SENTRY_OPTIONS["system.event-retention-days"] = int(env('SENTRY_EVENT_RETENTION_DAYS') or {{ .Values.sentry.cleanup.days | quote }})
 
+  # Process segments in taskworkers.
+  SENTRY_OPTIONS["spans.buffer.process-segments-task-rollout-rate"] = 1.0
+
   {{- if has "errors-only" .Values.profiles }}
   SENTRY_SELF_HOSTED_ERRORS_ONLY = True
   {{- end }}
@@ -351,7 +354,6 @@ sentry.conf.py: |-
               "organizations:org-ingest-subdomains",
               {{- end }}
               "organizations:issue-views",
-              "organizations:incidents",
               "organizations:integrations-issue-basic",
               "organizations:integrations-issue-sync",
               "organizations:invite-members",

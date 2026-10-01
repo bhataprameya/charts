@@ -17,13 +17,6 @@ config.yml: |-
     {{- end }}
     port: {{ template "relay.port" }}
 
-    {{- if .Values.relay.cache }}
-    {{- if .Values.relay.cache.envelopeBufferSize }}
-    cache:
-      envelope_buffer_size: {{ int64 .Values.relay.cache.envelopeBufferSize | quote }}
-    {{- end }}
-    {{- end }}
-
   {{- if .Values.relay.logging }}
   logging:
     {{- if .Values.relay.logging.level }}

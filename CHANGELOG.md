@@ -2,6 +2,13 @@
 
 The changelog below refers to the main `sentry` chart only.
 
+## Upgrading to Sentry 26.9.0
+
+- All eight Sentry component images default to `26.9.0` on GHCR.
+- ClickHouse must be at least `25.8.16.10001`; examples and the cleanup client use `25.8.28.10001.altinitystable`. Snuba now uses the HTTP(S) port and Python file probes.
+- Segment processing moves to the ingest taskworkers. The standalone segment processor and remaining generic metrics consumers are removed, along with obsolete configuration.
+- Follow the [upgrade guide](charts/sentry/docs/UPGRADE.md#upgrading-to-sentry-2690) for queue draining, custom values, migrations, and cleanup of old hook deployments.
+
 ## Upgrading to Chart 33.4.0
 
 Chart `33.4.0` targets [Sentry 26.8.0](https://github.com/getsentry/self-hosted/releases/tag/26.8.0).

@@ -44,42 +44,42 @@ asHook: true
 
 images:
   sentry:
-    # repository: getsentry/sentry
+    # repository: ghcr.io/getsentry/sentry
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   snuba:
-    # repository: getsentry/snuba
+    # repository: ghcr.io/getsentry/snuba
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   relay:
-    # repository: getsentry/relay
+    # repository: ghcr.io/getsentry/relay
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   symbolicator:
-    # repository: getsentry/symbolicator
+    # repository: ghcr.io/getsentry/symbolicator
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   vroom:
-    # repository: getsentry/vroom
+    # repository: ghcr.io/getsentry/vroom
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   uptimeChecker:
-    # repository: getsentry/uptime-checker
+    # repository: ghcr.io/getsentry/uptime-checker
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   taskbroker:
-    # repository: getsentry/taskbroker
+    # repository: ghcr.io/getsentry/taskbroker
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
   launchpad:
-    # repository: getsentry/launchpad
+    # repository: ghcr.io/getsentry/launchpad
     # tag: Chart.AppVersion
     # pullPolicy: IfNotPresent
     imagePullSecrets: []
@@ -275,8 +275,6 @@ relay:
   #     repository: busybox
   #     tag: "1.36"
   #     pullPolicy: IfNotPresent
-  # cache:
-  #   envelopeBufferSize: 1000
   # logging:
   #   level: info
   #   format: json
@@ -393,12 +391,8 @@ sentry:
     enableSpan: false
     enableUptime: false
 
-  # example customFeature to enable Metrics(beta) https://docs.sentry.io/product/metrics/
-  # customFeatures:
-  # - organizations:custom-metric
-  # - organizations:custom-metrics-experimental
-  # - organizations:derive-code-mappings
-  # other feature here https://github.com/getsentry/sentry/blob/24.11.2/src/sentry/features/temporary.py
+  # customFeatures: []
+  # Available features: https://github.com/getsentry/sentry/blob/master/src/sentry/features/temporary.py
 
   jsSdk:
     # Enable local hosting of JS SDK bundles instead of loading from browser.sentry-cdn.com
@@ -562,14 +556,6 @@ sentry:
               namespace: snuba.subscriptions.metrics.raw
               application: sentry
               taskname: sentry.snuba.query_subscriptions.run.process_metrics_subscription_from_kafka
-              processingDeadlineDuration: 60
-          generic-metrics-subscription-results:
-            cluster: default
-            consumerGroup: query-subscription-consumer
-            raw:
-              namespace: snuba.subscriptions.generic_metrics.raw
-              application: sentry
-              taskname: sentry.snuba.query_subscriptions.run.process_generic_metrics_subscription_from_kafka
               processingDeadlineDuration: 60
           subscription-results-eap-items:
             cluster: default
@@ -994,47 +980,6 @@ sentry:
     autoOffsetReset: earliest
     noStrictOffsetReset: true
 
-  genericMetricsConsumer:
-    enabled: true
-    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
-    strategyType: null
-    annotations: {}
-    replicas: 1
-    # concurrency: 4
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 200m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    maxPollIntervalMs: 300000
-    # logLevel: "info"
-    # it's better to use prometheus adapter or keda and scale based on
-    # the size of the queue
-    autoscaling:
-      enabled: false
-      minReplicas: 1
-      maxReplicas: 3
-      targetCPUUtilizationPercentage: 50
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    # volumeMounts:
-    #   - mountPath: /dev/shm
-    #     name: dshm
-    autoOffsetReset: earliest
-    noStrictOffsetReset: true
-
   metricsConsumer:
     enabled: true
     # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
@@ -1200,40 +1145,6 @@ sentry:
       timeoutSeconds: 5
     autoOffsetReset: earliest
     noStrictOffsetReset: true
-
-  processSegments:
-    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
-    maxPollIntervalMs: 300000
-    enabled: true
-    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
-    strategyType: null
-    annotations: {}
-    replicas: 1
-    # concurrency: 4
-    env: []
-    resources: {}
-    #  requests:
-    #    cpu: 150m
-    #    memory: 500Mi
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    topologySpreadConstraints: []
-    volumes: []
-    volumeMounts: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    autoOffsetReset: earliest
-    noStrictOffsetReset: true
-    # maxBatchSize: "500"
-    # maxBatchTimeMs: "1000"
 
   processSpans:
     # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
@@ -1663,67 +1574,6 @@ snuba:
     # autoOffsetReset: "earliest"
     # noStrictOffsetReset: false
 
-  subscriptionConsumerGenericMetricsCounters:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
-    enabled: true
-    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
-    strategyType: null
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    topologySpreadConstraints: []
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    volumes: []
-    volumeMounts: []
-    # autoOffsetReset: "earliest"
-    # noStrictOffsetReset: false
-
-  genericMetricsCountersConsumer:
-    # Default --max-poll-interval-ms (self-hosted SENTRY_KAFKA_MAX_POLL_INTERVAL_MS). Set null to disable.
-    maxPollIntervalMs: 300000
-    enabled: true
-    # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
-    strategyType: null
-    annotations: {}
-    replicas: 1
-    env: []
-    resources: {}
-    affinity: {}
-    nodeSelector: {}
-    securityContext: {}
-    topologySpreadConstraints: []
-    containerSecurityContext: {}
-    tolerations: []
-    podLabels: {}
-    sidecars: []
-    # autoOffsetReset: "earliest"
-    livenessProbe:
-      enabled: true
-      periodSeconds: 30
-      failureThreshold: 5
-      timeoutSeconds: 5
-    volumes: []
-    volumeMounts: []
-    # maxBatchSize: ""
-    # processes: ""
-    # inputBlockSize: ""
-    # outputBlockSize: ""
-    maxBatchTimeMs: 750
-    # queuedMaxMessagesKbytes: ""
-    # queuedMinMessages: ""
-    # noStrictOffsetReset: false
-
   subscriptionConsumerMetrics:  # should have 1 partition and only 1 consumer replica: https://github.com/getsentry/snuba/issues/5855
     enabled: true
     # Recreate if replicas=1, else RollingUpdate (see sentry-kubernetes/charts#2238). Override to force either.
@@ -2077,8 +1927,8 @@ snuba:
     # -- Enable ClickHouse database cleanup cronjob
     enabled: false
     image:
-      repository: clickhouse/clickhouse-server
-      tag: latest
+      repository: altinity/clickhouse-server
+      tag: 25.8.28.10001.altinitystable
       pullPolicy: IfNotPresent
     # -- Retention period in days for ClickHouse data cleanup
     retentionDays: 30
@@ -2858,6 +2708,7 @@ config:
       "ingest.transactions": "taskworker-ingest"
       "ingest.attachments": "taskworker-ingest"
       "ingest.errors.postprocess": "taskworker-ingest"
+      "spans.process_segments": "taskworker-ingest"
       "deletions": "taskworker-long"
       "deletions.control": "taskworker-long"
       "crons": "taskworker-products"
@@ -2892,10 +2743,13 @@ config:
 
 externalClickhouse:
   ## External ClickHouse configuration (required).
+  ## Requires ClickHouse >= 25.8.16.10001.
   ## Hostname or ip address of external clickhouse
   ##
   host: "clickhouse"
+  # -- Native TCP port used by the optional ClickHouse cleanup client
   tcpPort: 9000
+  # -- HTTP(S) port used by Snuba queries, ingestion, and migrations
   httpPort: 8123
   username: default
   password: ""
@@ -2976,6 +2830,7 @@ kafka:
       - name: outcomes-billing
       - name: outcomes-billing-dlq
       - name: ingest-spans
+      - name: ingest-spans-dlq
       - name: ingest-sessions
       - name: snuba-metrics-commit-log
         config:
@@ -2984,10 +2839,7 @@ kafka:
       - name: scheduled-subscriptions-events
       - name: scheduled-subscriptions-transactions
       - name: scheduled-subscriptions-metrics
-      - name: scheduled-subscriptions-generic-metrics-sets
-      - name: scheduled-subscriptions-generic-metrics-distributions
       - name: scheduled-subscriptions-generic-metrics-counters
-      - name: scheduled-subscriptions-generic-metrics-gauges
       - name: events-subscription-results
       - name: transactions-subscription-results
       - name: metrics-subscription-results
@@ -3006,19 +2858,7 @@ kafka:
       - name: snuba-generic-metrics
         config:
           "message.timestamp.type": LogAppendTime
-      - name: snuba-generic-metrics-sets-commit-log
-        config:
-          "cleanup.policy": "compact,delete"
-          "min.compaction.lag.ms": "3600000"
-      - name: snuba-generic-metrics-distributions-commit-log
-        config:
-          "cleanup.policy": "compact,delete"
-          "min.compaction.lag.ms": "3600000"
       - name: snuba-generic-metrics-counters-commit-log
-        config:
-          "cleanup.policy": "compact,delete"
-          "min.compaction.lag.ms": "3600000"
-      - name: snuba-generic-metrics-gauges-commit-log
         config:
           "cleanup.policy": "compact,delete"
           "min.compaction.lag.ms": "3600000"
@@ -3045,6 +2885,7 @@ kafka:
       - name: ingest-transactions-dlq
       - name: ingest-transactions-backlog
       - name: ingest-events-dlq
+      - name: ingest-events-backlog
       - name: ingest-events
         ## If the number of exceptions increases, it is recommended to increase the number of partitions for ingest-events
         # partitions: 1
@@ -3052,6 +2893,7 @@ kafka:
       - name: ingest-metrics
       - name: ingest-metrics-dlq
       - name: ingest-performance-metrics
+      - name: ingest-generic-metrics-dlq
       - name: ingest-feedback-events
       - name: ingest-feedback-events-dlq
       - name: ingest-monitors
@@ -3079,6 +2921,7 @@ kafka:
       - name: snuba-uptime-results
       - name: task-worker
       - name: snuba-ourlogs
+      - name: snuba-llm-proxy-cost
       - name: snuba-items
       - name: taskworker
       - name: taskworker-dlq

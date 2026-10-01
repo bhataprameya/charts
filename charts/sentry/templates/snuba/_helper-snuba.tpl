@@ -35,7 +35,7 @@ settings.py: |
   CLUSTERS = [
     {
       "host": env("CLICKHOUSE_HOST", {{ include "sentry.clickhouse.host" . | quote }}),
-      "port": int({{ include "sentry.clickhouse.port" . }}),
+      "port": int(env("CLICKHOUSE_HTTP_PORT", {{ include "sentry.clickhouse.http_port" . | quote }})),
       "secure": env("CLICKHOUSE_SECURE", "False").lower() in ("1", "true"),
       "ca_certs": env("CLICKHOUSE_CA_CERTS", None),
       "verify": env("CLICKHOUSE_VERIFY", "False").lower() in ("1", "true"),
@@ -43,7 +43,6 @@ settings.py: |
       "password": env("CLICKHOUSE_PASSWORD", ""),
       "max_connections": int(os.environ.get("CLICKHOUSE_MAX_CONNECTIONS", 100)),
       "database": env("CLICKHOUSE_DATABASE", "default"),
-      "http_port": {{ include "sentry.clickhouse.http_port" . }},
       "storage_sets": {
           "cdc",
           "discover",
