@@ -2,16 +2,6 @@
 
 The changelog below refers to the main `sentry` chart only.
 
-## Upgrading to Sentry 26.9.0
-
-- All eight Sentry component images default to [26.9.0](https://github.com/getsentry/self-hosted/releases/tag/26.9.0) on GHCR.
-- Upgrade ClickHouse to at least `25.8.16.10001` first; examples and the cleanup client use `25.8.28.10001.altinitystable`. Snuba now uses the HTTP(S) port and Python file probes; review custom ports and shell-based probes.
-- Removed values: `sentry.genericMetricsConsumer`, `sentry.processSegments`, `snuba.genericMetricsCountersConsumer`, and `snuba.subscriptionConsumerGenericMetricsCounters`.
-- Segment processing moves to ingest taskworkers. Pause ingestion and drain buffered spans and the old `buffered-segments` backlog before upgrading. Retain the `spans.process_segments` route to `taskworker-ingest` in custom routing and keep its broker/workers enabled.
-- Remove `generic-metrics-subscription-results` from custom Taskbroker topic maps and synchronize custom Kafka topic lists with `values.yaml`. Helm replaces these lists; `--reuse-values` can retain obsolete entries.
-- With `asHook: true`, manually remove the four obsolete consumer Deployments for your release after draining; Helm does not delete removed hook resources. Existing Kafka topics and ClickHouse tables are retained.
-- Remove custom `relay.cache.envelopeBufferSize` / `cache.envelope_buffer_size` and `organizations:incidents` overrides. Relay also drops Expect-CT, HPKP, and Expect-Staple reports.
-
 ## Upgrading to Chart 33.4.0
 
 Chart `33.4.0` targets [Sentry 26.8.0](https://github.com/getsentry/self-hosted/releases/tag/26.8.0).
