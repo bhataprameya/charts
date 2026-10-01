@@ -14,7 +14,6 @@ Snuba connects over HTTP(S) using `externalClickhouse.httpPort` (default `8123`)
 
 - [Clustered ClickHouse setup](../../../README.md#external-clickhouse-configuration)
 - [Single-node ClickHouse setup](../../../clickhouse-single-install.md)
-- [Sentry 26.9.0 upgrade guide](UPGRADE.md#upgrading-to-sentry-2690)
 
 ## Kafka
 

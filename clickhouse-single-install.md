@@ -2,8 +2,6 @@
 
 Minimum Viable Product (MVP) configuration for a single-node ClickHouse instance suitable for testing or small-scale deployments.
 
-Sentry 26.9.0 requires ClickHouse **25.8.16.10001 or newer**. This example uses `25.8.28.10001.altinitystable`, matching upstream self-hosted. For existing installations, follow the [26.9.0 upgrade guide](charts/sentry/docs/UPGRADE.md#upgrading-to-sentry-2690) before upgrading Sentry.
-
 ## Prerequisites
 
 Install Altinity ClickHouse Operator:
